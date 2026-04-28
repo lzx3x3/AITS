@@ -1,0 +1,13 @@
+-r base.txt
+
+# 测试
+pytest==8.4.1
+pytest-django==4.11.1
+pytest-cov==6.2.1
+
+# 代码质量
+ruff==0.11.12
+
+# 调试
+debugpy==1.8.14
+django-debug-toolbar==5.2.0

@@ -1,0 +1,7 @@
+-r base.txt
+
+# 生产服务器
+gunicorn==23.0.0
+
+# PostgreSQL 驱动
+psycopg2-binary==2.9.10
