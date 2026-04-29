@@ -27,6 +27,8 @@ urlpatterns = [
     path("api/v1/", api_root, name="api-root"),
     path("api/v1/common/", include("apps.common.urls")),
     path("api/v1/projects/", include("apps.projects.urls")),
+    path("api/v1/environments/", include("apps.projects.environment_urls")),
+    path("api/v1/project-members/", include("apps.projects.member_urls")),
     path("api/v1/api-testing/", include("apps.api_testing.urls")),
     path("api/v1/web-testing/", include("apps.web_testing.urls")),
     path("api/v1/ai-core/", include("apps.ai_core.urls")),
