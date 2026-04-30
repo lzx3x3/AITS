@@ -38,6 +38,8 @@ class TargetType(models.TextChoices):
 class ApiSchemaSourceType(models.TextChoices):
     URL = "url", "URL"
     JSON = "json", "JSON"
+    WORD = "word", "WORD"
+    PDF = "pdf", "PDF"
 
 
 class ReportType(models.TextChoices):
@@ -53,4 +55,8 @@ class LlmProvider(models.TextChoices):
     OPENAI = "openai", "OpenAI"
     ANTHROPIC = "anthropic", "Anthropic"
     AZURE = "azure", "Azure"
+    QWEN = "qwen", "Qwen"
+    DEEPSEEK = "deepseek", "DeepSeek"
+    GLM = "glm", "GLM"
+    MINIMAX = "minimax", "MiniMax"
     OTHER = "other", "Other"

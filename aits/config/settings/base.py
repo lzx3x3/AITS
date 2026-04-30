@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
     "apps.common.apps.CommonConfig",
     "apps.projects.apps.ProjectsConfig",
     "apps.api_testing.apps.ApiTestingConfig",

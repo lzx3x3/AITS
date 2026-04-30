@@ -1,0 +1,2478 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Testing Console</title>
+  <style>
+    :root { --blue:#1e66f5; --blue2:#0f4acc; --bg:#f4f8ff; --panel:#fff; --text:#1f2a44; --sub:#70809f; --bd:#d8e3fb; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:"Segoe UI",Arial,sans-serif; background:var(--bg); color:var(--text); }
+    .layout { min-height:100vh; display:grid; grid-template-columns:240px 1fr; }
+    .sidebar { background:linear-gradient(180deg,#0b3a9e,#1e66f5); color:#fff; padding:16px 12px; }
+    .brand { font-size:18px; font-weight:700; margin:8px; }
+    .menu { display:flex; flex-direction:column; gap:8px; }
+    .menu button { width:100%; text-align:left; border:1px solid rgba(255,255,255,.3); background:rgba(255,255,255,.08); color:#fff; padding:10px 12px; border-radius:8px; cursor:pointer; }
+    .menu button.active { background:#fff; color:var(--blue2); font-weight:600; border-color:#fff; }
+    .main { padding:20px; }
+    .title { font-size:24px; font-weight:700; margin-bottom:14px; }
+    .module { display:none; background:var(--panel); border:1px solid var(--bd); border-radius:12px; padding:16px; box-shadow:0 4px 16px rgba(24,75,180,.06); }
+    .module.active { display:block; }
+    h2 { margin:0 0 8px; font-size:18px; }
+    .hint { margin:0 0 12px; color:var(--sub); font-size:13px; }
+    .row { margin:8px 0; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    label { display:block; font-size:12px; color:var(--sub); margin-bottom:4px; font-weight:600; }
+    input, select, textarea, button { width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--bd); font-size:14px; }
+    textarea { min-height:120px; font-family:Consolas,monospace; }
+    button { border:none; background:var(--blue); color:#fff; font-weight:600; cursor:pointer; }
+    button:hover { background:var(--blue2); }
+    .btn2 { background:#ebf2ff; color:var(--blue2); border:1px solid #c5d8ff; }
+    .btn2:hover { background:#dce9ff; }
+    pre { margin-top:10px; background:#f8fbff; border:1px solid var(--bd); border-radius:8px; padding:10px; max-height:280px; overflow:auto; font-size:12px; }
+    .endpoint-list { border:1px solid var(--bd); border-radius:8px; max-height:240px; overflow:auto; padding:8px; background:#f9fbff; }
+    .endpoint-item { display:flex; gap:8px; align-items:center; margin:6px 0; font-size:13px; }
+    .table-wrap { border:1px solid var(--bd); border-radius:8px; overflow:auto; margin-top:8px; }
+    table { width:100%; border-collapse: collapse; background:#fff; }
+    th, td { border-bottom:1px solid #e7efff; padding:8px; text-align:left; font-size:13px; }
+    th { background:#eef4ff; color:#234; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">AITS Workbench</div>
+      <div class="menu">
+        <button class="menu-btn active" data-module="module-provider">模型配置</button>
+        <button class="menu-btn" data-module="module-prompt">Prompt 配置</button>
+        <button class="menu-btn" data-module="module-schema">OpenAPI 导入</button>
+        <button class="menu-btn" data-module="module-ai">AI 生成用例</button>
+        <button class="menu-btn" data-module="module-cases">TestCase 查询</button>
+      </div>
+    </aside>
+    <main class="main">
+      <div class="title">API 自动化测试控制台</div>
+
+      <section id="module-provider" class="module active">
+        <h2>模型配置（LLM Provider）</h2>
+        <div class="grid2">
+          <div class="row"><label>provider_id</label><input id="provider-id" placeholder="按ID加载/更新使用" /></div>
+          <div class="row" style="display:flex;align-items:flex-end;"><button id="load-provider" class="btn2">按ID加载</button></div>
+        </div>
+        <div class="grid2">
+          <div class="row"><label>name</label><input id="provider-name" value="openai-main" /></div>
+          <div class="row"><label>provider</label><select id="provider-provider"><option value="openai">openai</option><option value="anthropic">anthropic</option><option value="qwen">qwen</option><option value="deepseek">deepseek</option><option value="glm">glm</option><option value="minimax">minimax</option></select></div>
+        </div>
+        <div class="grid2">
+          <div class="row"><label>model_name</label><input id="provider-model" value="gpt-4o-mini" /></div>
+          <div class="row"><label>api_base</label><input id="provider-base" placeholder="https://api.openai.com/v1" /></div>
+        </div>
+        <div class="row"><label>api_key_encrypted</label><input id="provider-key" placeholder="sk-..." /></div>
+        <div class="grid2"><div class="row"><button id="save-provider">创建</button></div><div class="row"><button id="update-provider" class="btn2">更新</button></div></div>
+        <div class="row"><button id="list-provider" class="btn2">刷新列表</button></div>
+        <pre id="provider-output"></pre>
+      </section>
+
+      <section id="module-prompt" class="module">
+        <h2>Prompt 配置</h2>
+        <div class="grid2">
+          <div class="row"><label>scene</label><input id="prompt-scene" value="api_case_gen" /></div>
+          <div class="row"><label>version</label><input id="prompt-version" type="number" value="1" /></div>
+        </div>
+        <div class="row"><label>template_text</label><textarea id="prompt-text">Generate API test cases in JSON array format with fields: title, request_data, assertions.</textarea></div>
+        <div class="grid2"><div class="row"><button id="save-prompt">创建 Prompt</button></div><div class="row"><button id="list-prompt" class="btn2">刷新列表</button></div></div>
+        <pre id="prompt-output"></pre>
+      </section>
+
+      <section id="module-schema" class="module">
+        <h2>OpenAPI 导入</h2>
+        <div class="grid2">
+          <div class="row"><label>选择已有项目</label><select id="schema-project-select"><option value="">-- 请选择项目 --</option></select></div>
+          <div class="row" style="display:flex;align-items:flex-end;"><button id="refresh-projects" class="btn2">刷新项目列表</button></div>
+        </div>
+        <div class="grid2">
+          <div class="row"><label>或新建项目名称</label><input id="schema-new-project-name" placeholder="例如：支付系统API项目" /></div>
+          <div class="row"><label>新建项目描述（可选）</label><input id="schema-new-project-desc" placeholder="项目描述..." /></div>
+        </div>
+        <div class="row"><label>source_type</label><select id="schema-source"><option value="json">json</option><option value="url">url</option><option value="word">word</option><option value="pdf">pdf</option></select></div>
+        <div class="row"><label>content（JSON/文档文本）或 url</label><textarea id="schema-content">{
+  "openapi": "3.0.3",
+  "info": {"title": "Demo API"},
+  "paths": {"/pets": {"get": {"summary": "List pets","responses": {"200": {"description": "ok"}}}}}
+}</textarea></div>
+        <div class="row"><label>上传文件（.json/.docx/.pdf/.md/.txt）</label><input id="schema-file" type="file" accept=".json,.docx,.pdf,.md,.txt,text/markdown,text/plain,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></div>
+        <div class="row"><button id="import-schema">导入 Schema</button></div>
+        <pre id="schema-output"></pre>
+      </section>
+
+      <section id="module-ai" class="module">
+        <h2>AI 生成 API TestCase</h2>
+        <p class="hint">接口勾选在本模块内完成；不勾选时可按项目批量生成。</p>
+        <div class="grid2">
+          <div class="row"><label>接口筛选 project</label><select id="endpoint-project-select"><option value="">-- 全部项目 --</option></select></div>
+          <div class="row"><label>schema_id（可选）</label><input id="endpoint-schema-id" placeholder="导入成功后自动填充" /></div>
+        </div>
+        <div class="grid2"><div class="row"><button id="load-endpoints">加载接口列表</button></div><div class="row"><button id="select-all-endpoints" class="btn2">全选/全不选</button></div></div>
+        <div id="endpoint-list" class="endpoint-list">暂无接口数据。</div>
+        <pre id="endpoint-output"></pre>
+        <div class="row"><label>project（可选，未勾选 endpoint 时使用）</label><select id="ai-project-select"><option value="">-- 请选择项目 --</option></select></div>
+        <div class="row"><label>prompt</label><input id="ai-prompt" value="每个API各生成至少1条正向场景测试用例和2条负向场景测试用例" /></div>
+        <div class="row"><button id="ai-generate">生成</button></div>
+        <pre id="ai-output"></pre>
+      </section>
+
+      <section id="module-cases" class="module">
+        <h2>TestCase 查询</h2>
+        <div class="grid2">
+          <div class="row"><label>project</label><select id="case-project-select"><option value="">-- 全部项目 --</option></select></div>
+          <div class="row"><label>endpoint（可选）</label><input id="case-endpoint" /></div>
+        </div>
+        <div class="grid2"><div class="row"><button id="list-cases">查询列表</button></div><div class="row"><button id="get-case" class="btn2">按ID详情</button></div></div>
+        <div class="row"><label>case_id</label><input id="case-id" /></div>
+        <div class="table-wrap"><table><thead><tr><th>ID</th><th>标题</th><th>Project</th><th>Endpoint</th><th>AI生成</th><th>更新时间</th></tr></thead><tbody id="case-table-body"><tr><td colspan="6">暂无数据</td></tr></tbody></table></div>
+        <pre id="case-output"></pre>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    let endpointSelectAllState = false;
+    function pretty(targetId, data) { document.getElementById(targetId).textContent = JSON.stringify(data, null, 2); }
+    function switchModule(moduleId) {
+      document.querySelectorAll(".menu-btn").forEach((b) => b.classList.toggle("active", b.dataset.module === moduleId));
+      document.querySelectorAll(".module").forEach((m) => m.classList.toggle("active", m.id === moduleId));
+    }
+    document.querySelectorAll(".menu-btn").forEach((btn) => btn.addEventListener("click", () => switchModule(btn.dataset.module)));
+    async function request(url, method = "GET", body = null) {
+      const options = { method, headers: { "Accept": "application/json" } };
+      if (body !== null) { options.headers["Content-Type"] = "application/json"; options.body = JSON.stringify(body); }
+      const resp = await fetch(url, options);
+      let payload; try { payload = await resp.json(); } catch (e) { payload = { message: "Non-JSON response", status: resp.status }; }
+      if (!resp.ok) throw payload; return payload;
+    }
+    async function requestForm(url, formData) {
+      const resp = await fetch(url, { method: "POST", headers: { "Accept": "application/json" }, body: formData });
+      let payload; try { payload = await resp.json(); } catch (e) { payload = { message: "Non-JSON response", status: resp.status }; }
+      if (!resp.ok) throw payload; return payload;
+    }
+    async function loadProjects() {
+      const projects = await request("/api/v1/api-testing/projects");
+      const map = [["schema-project-select","-- 请选择项目 --"],["endpoint-project-select","-- 全部项目 --"],["ai-project-select","-- 请选择项目 --"],["case-project-select","-- 全部项目 --"]];
+      for (const [id, empty] of map) {
+        const sel = document.getElementById(id);
+        sel.innerHTML = `<option value="">${empty}</option>`;
+        for (const p of projects) { const op = document.createElement("option"); op.value = String(p.id); op.textContent = `${p.id} - ${p.name}`; sel.appendChild(op); }
+      }
+    }
+
+    document.getElementById("refresh-projects").onclick = async () => { try { await loadProjects(); pretty("schema-output",{ok:true}); } catch (e) { pretty("schema-output", e); } };
+    document.getElementById("save-provider").onclick = async () => { try { pretty("provider-output", await request("/api/v1/ai/providers/", "POST", { name: providerName.value, provider: providerProvider.value, model_name: providerModel.value, api_base: providerBase.value, api_key_encrypted: providerKey.value, is_active: true })); } catch (e) { pretty("provider-output", e); } };
+
+    const providerId = document.getElementById("provider-id");
+    const providerName = document.getElementById("provider-name");
+    const providerProvider = document.getElementById("provider-provider");
+    const providerModel = document.getElementById("provider-model");
+    const providerBase = document.getElementById("provider-base");
+    const providerKey = document.getElementById("provider-key");
+    document.getElementById("update-provider").onclick = async () => {
+      try { if (!providerId.value.trim()) throw { message: "请先填写 provider_id" }; pretty("provider-output", await request(`/api/v1/ai/providers/${encodeURIComponent(providerId.value.trim())}/`, "PATCH", { name: providerName.value, provider: providerProvider.value, model_name: providerModel.value, api_base: providerBase.value, api_key_encrypted: providerKey.value, is_active: true })); } catch (e) { pretty("provider-output", e); }
+    };
+    document.getElementById("load-provider").onclick = async () => {
+      try { if (!providerId.value.trim()) throw { message: "请先填写 provider_id" }; const d = await request(`/api/v1/ai/providers/${encodeURIComponent(providerId.value.trim())}/`); providerId.value = d.id; providerName.value = d.name || ""; providerProvider.value = d.provider || "openai"; providerModel.value = d.model_name || ""; providerBase.value = d.api_base || ""; providerKey.value = d.api_key_encrypted || ""; pretty("provider-output", d); } catch (e) { pretty("provider-output", e); }
+    };
+    document.getElementById("list-provider").onclick = async () => { try { pretty("provider-output", await request("/api/v1/ai/providers/")); } catch (e) { pretty("provider-output", e); } };
+    document.getElementById("save-prompt").onclick = async () => { try { pretty("prompt-output", await request("/api/v1/ai/prompts/", "POST", { scene: promptScene.value, version: Number(promptVersion.value), template_text: promptText.value, is_default: true })); } catch (e) { pretty("prompt-output", e); } };
+    document.getElementById("list-prompt").onclick = async () => { try { pretty("prompt-output", await request("/api/v1/ai/prompts/?scene=api_case_gen")); } catch (e) { pretty("prompt-output", e); } };
+    const promptScene = document.getElementById("prompt-scene");
+    const promptVersion = document.getElementById("prompt-version");
+    const promptText = document.getElementById("prompt-text");
+
+    document.getElementById("schema-file").onchange = (e) => {
+      const f = e.target.files && e.target.files[0]; if (!f) return;
+      const n = (f.name || "").toLowerCase(); const s = document.getElementById("schema-source");
+      if (n.endsWith(".pdf")) s.value = "pdf"; else if (n.endsWith(".docx") || n.endsWith(".md") || n.endsWith(".txt")) s.value = "word"; else if (n.endsWith(".json")) s.value = "json";
+    };
+    document.getElementById("import-schema").onclick = async () => {
+      try {
+        const source = document.getElementById("schema-source").value;
+        const content = document.getElementById("schema-content").value;
+        const selectedFile = document.getElementById("schema-file").files[0];
+        const projectId = document.getElementById("schema-project-select").value.trim();
+        const newProjectName = document.getElementById("schema-new-project-name").value.trim();
+        const newProjectDesc = document.getElementById("schema-new-project-desc").value.trim();
+        if (!projectId && !newProjectName) throw { message: "请先选择已有项目，或填写新建项目名称" };
+        let data;
+        if (selectedFile) {
+          const formData = new FormData();
+          formData.append("source_type", source); formData.append("file", selectedFile);
+          if (projectId) formData.append("project_id", projectId);
+          if (newProjectName) { formData.append("new_project_name", newProjectName); formData.append("new_project_description", newProjectDesc); }
+          if (source === "url") formData.append("url", content); else if (content) formData.append("content", content);
+          data = await requestForm("/api/v1/api-testing/schemas/import", formData);
+        } else {
+          const body = source === "url" ? { source_type: source, url: content } : { source_type: source, content };
+          if (projectId) body.project_id = Number(projectId);
+          if (newProjectName) { body.new_project_name = newProjectName; body.new_project_description = newProjectDesc; }
+          data = await request("/api/v1/api-testing/schemas/import", "POST", body);
+        }
+        document.getElementById("endpoint-schema-id").value = data.schema_id || "";
+        await loadProjects();
+        if (projectId) { document.getElementById("endpoint-project-select").value = projectId; document.getElementById("ai-project-select").value = projectId; document.getElementById("case-project-select").value = projectId; }
+        pretty("schema-output", data);
+        switchModule("module-ai");
+      } catch (e) { pretty("schema-output", e); }
+    };
+
+    function getSelectedEndpointIds() {
+      const checks = document.querySelectorAll(".endpoint-item input[type='checkbox']");
+      const ids = []; for (const c of checks) if (c.checked) ids.push(Number(c.value)); return ids;
+    }
+    function renderEndpointList(items) {
+      const box = document.getElementById("endpoint-list"); box.innerHTML = "";
+      if (!Array.isArray(items) || items.length === 0) { box.textContent = "暂无接口数据。"; return; }
+      for (const item of items) {
+        const row = document.createElement("label");
+        row.className = "endpoint-item";
+        row.innerHTML = `<input type="checkbox" value="${item.id}" /> <span>[${String(item.method || "").toUpperCase()}] ${item.path}${item.summary ? " - " + item.summary : ""}</span>`;
+        box.appendChild(row);
+      }
+    }
+    document.getElementById("load-endpoints").onclick = async () => {
+      try {
+        const schemaId = document.getElementById("endpoint-schema-id").value.trim();
+        const projectId = document.getElementById("endpoint-project-select").value.trim();
+        const params = new URLSearchParams();
+        if (schemaId) params.set("schema_id", schemaId);
+        if (projectId) params.set("project_id", projectId);
+        const data = await request(`/api/v1/api-testing/endpoints/?${params.toString()}`);
+        renderEndpointList(data);
+        pretty("endpoint-output", data);
+      } catch (e) { pretty("endpoint-output", e); }
+    };
+    document.getElementById("select-all-endpoints").onclick = () => {
+      endpointSelectAllState = !endpointSelectAllState;
+      document.querySelectorAll(".endpoint-item input[type='checkbox']").forEach((c) => { c.checked = endpointSelectAllState; });
+    };
+    document.getElementById("ai-generate").onclick = async () => {
+      try {
+        const endpointIds = getSelectedEndpointIds();
+        const projectId = document.getElementById("ai-project-select").value.trim();
+        const body = { prompt: document.getElementById("ai-prompt").value };
+        if (endpointIds.length > 0) body.endpoint_ids = endpointIds;
+        else if (projectId) body.project_id = Number(projectId);
+        else throw { message: "请勾选 endpoint，或选择 project 后按项目批量生成" };
+        const data = await request("/api/v1/api-testing/test-cases/ai-generate", "POST", body);
+        const firstCase = Array.isArray(data.cases) && data.cases.length > 0 ? data.cases[0] : data;
+        if (firstCase && firstCase.id) {
+          document.getElementById("case-id").value = firstCase.id;
+          document.getElementById("case-endpoint").value = firstCase.endpoint || "";
+          if (firstCase.project) document.getElementById("case-project-select").value = String(firstCase.project);
+        }
+        pretty("ai-output", data);
+      } catch (e) { pretty("ai-output", e); }
+    };
+
+    function renderCaseTable(items) {
+      const tbody = document.getElementById("case-table-body"); tbody.innerHTML = "";
+      if (!Array.isArray(items) || items.length === 0) { tbody.innerHTML = '<tr><td colspan="6">暂无数据</td></tr>'; return; }
+      for (const item of items) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${item.id}</td><td>${item.title || ""}</td><td>${item.project || ""}</td><td>${item.endpoint || ""}</td><td>${item.generated_by_ai ? "是" : "否"}</td><td>${item.updated_at || ""}</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+    document.getElementById("list-cases").onclick = async () => {
+      try {
+        const params = new URLSearchParams();
+        const endpoint = document.getElementById("case-endpoint").value.trim();
+        const project = document.getElementById("case-project-select").value.trim();
+        if (endpoint) params.set("endpoint", endpoint);
+        if (project) params.set("project", project);
+        const data = await request(`/api/v1/api-testing/test-cases/?${params.toString()}`);
+        renderCaseTable(data);
+        pretty("case-output", { count: Array.isArray(data) ? data.length : 0 });
+      } catch (e) { pretty("case-output", e); }
+    };
+    document.getElementById("get-case").onclick = async () => {
+      try { pretty("case-output", await request(`/api/v1/api-testing/test-cases/${encodeURIComponent(document.getElementById("case-id").value)}/`)); }
+      catch (e) { pretty("case-output", e); }
+    };
+
+    loadProjects().catch(() => {});
+  </script>
+</body>
+</html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Testing Console</title>
+  <style>
+    :root { --blue:#1e66f5; --blue2:#0f4acc; --bg:#f4f8ff; --panel:#fff; --text:#1f2a44; --sub:#70809f; --bd:#d8e3fb; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:"Segoe UI",Arial,sans-serif; background:var(--bg); color:var(--text); }
+    .layout { min-height:100vh; display:grid; grid-template-columns:240px 1fr; }
+    .sidebar { background:linear-gradient(180deg,#0b3a9e,#1e66f5); color:#fff; padding:16px 12px; }
+    .brand { font-size:18px; font-weight:700; margin:8px; }
+    .menu { display:flex; flex-direction:column; gap:8px; }
+    .menu button { width:100%; text-align:left; border:1px solid rgba(255,255,255,.3); background:rgba(255,255,255,.08); color:#fff; padding:10px 12px; border-radius:8px; cursor:pointer; }
+    .menu button.active { background:#fff; color:var(--blue2); font-weight:600; border-color:#fff; }
+    .main { padding:20px; }
+    .title { font-size:24px; font-weight:700; margin-bottom:14px; }
+    .module { display:none; background:var(--panel); border:1px solid var(--bd); border-radius:12px; padding:16px; box-shadow:0 4px 16px rgba(24,75,180,.06); }
+    .module.active { display:block; }
+    h2 { margin:0 0 8px; font-size:18px; }
+    .hint { margin:0 0 12px; color:var(--sub); font-size:13px; }
+    .row { margin:8px 0; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    label { display:block; font-size:12px; color:var(--sub); margin-bottom:4px; font-weight:600; }
+    input, select, textarea, button { width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--bd); font-size:14px; }
+    textarea { min-height:120px; font-family:Consolas,monospace; }
+    button { border:none; background:var(--blue); color:#fff; font-weight:600; cursor:pointer; }
+    button:hover { background:var(--blue2); }
+    .btn2 { background:#ebf2ff; color:var(--blue2); border:1px solid #c5d8ff; }
+    .btn2:hover { background:#dce9ff; }
+    pre { margin-top:10px; background:#f8fbff; border:1px solid var(--bd); border-radius:8px; padding:10px; max-height:280px; overflow:auto; font-size:12px; }
+    .endpoint-list { border:1px solid var(--bd); border-radius:8px; max-height:240px; overflow:auto; padding:8px; background:#f9fbff; }
+    .endpoint-item { display:flex; gap:8px; align-items:center; margin:6px 0; font-size:13px; }
+    .table-wrap { border:1px solid var(--bd); border-radius:8px; overflow:auto; margin-top:8px; }
+    table { width:100%; border-collapse: collapse; background:#fff; }
+    th, td { border-bottom:1px solid #e7efff; padding:8px; text-align:left; font-size:13px; }
+    th { background:#eef4ff; color:#234; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">AITS Workbench</div>
+      <div class="menu">
+        <button class="menu-btn active" data-module="module-provider">模型配置</button>
+        <button class="menu-btn" data-module="module-prompt">Prompt 配置</button>
+        <button class="menu-btn" data-module="module-schema">OpenAPI 导入</button>
+        <button class="menu-btn" data-module="module-ai">AI 生成用例</button>
+        <button class="menu-btn" data-module="module-cases">TestCase 查询</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="title">API 自动化测试控制台</div>
+
+      <section id="module-provider" class="module active">
+        <h2>模型配置（LLM Provider）</h2>
+        <p class="hint">支持创建、加载、更新已有 Provider。</p>
+        <div class="grid2">
+          <div class="row"><label>provider_id</label><input id="provider-id" placeholder="按ID加载/更新使用" /></div>
+          <div class="row" style="display:flex;align-items:flex-end;"><button id="load-provider" class="btn2">按ID加载</button></div>
+        </div>
+        <div class="grid2">
+          <div class="row"><label>name</label><input id="provider-name" value="openai-main" /></div>
+          <div class="row"><label>provider</label><select id="provider-provider"><option value="openai">openai</option><option value="anthropic">anthropic</option><option value="qwen">qwen</option><option value="deepseek">deepseek</option><option value="glm">glm</option><option value="minimax">minimax</option></select></div>
+        </div>
+        <div class="grid2">
+          <div class="row"><label>model_name</label><input id="provider-model" value="gpt-4o-mini" /></div>
+          <div class="row"><label>api_base</label><input id="provider-base" placeholder="https://api.openai.com/v1" /></div>
+        </div>
+        <div class="row"><label>api_key_encrypted</label><input id="provider-key" placeholder="sk-..." /></div>
+        <div class="grid2"><div class="row"><button id="save-provider">创建</button></div><div class="row"><button id="update-provider" class="btn2">更新</button></div></div>
+        <div class="row"><button id="list-provider" class="btn2">刷新列表</button></div>
+        <pre id="provider-output"></pre>
+      </section>
+
+      <section id="module-prompt" class="module">
+        <h2>Prompt 配置</h2>
+        <p class="hint">配置 `api_case_gen` 场景默认提示词。</p>
+        <div class="grid2">
+          <div class="row"><label>scene</label><input id="prompt-scene" value="api_case_gen" /></div>
+          <div class="row"><label>version</label><input id="prompt-version" type="number" value="1" /></div>
+        </div>
+        <div class="row"><label>template_text</label><textarea id="prompt-text">Generate API test cases in JSON array format with fields: title, request_data, assertions.</textarea></div>
+        <div class="grid2"><div class="row"><button id="save-prompt">创建 Prompt</button></div><div class="row"><button id="list-prompt" class="btn2">刷新列表</button></div></div>
+        <pre id="prompt-output"></pre>
+      </section>
+
+      <section id="module-schema" class="module">
+        <h2>OpenAPI 导入</h2>
+        <p class="hint">先选择已有项目或新建项目，再导入接口。</p>
+        <div class="grid2">
+          <div class="row"><label>选择已有项目</label><select id="schema-project-select"><option value="">-- 请选择项目 --</option></select></div>
+          <div class="row" style="display:flex;align-items:flex-end;"><button id="refresh-projects" class="btn2">刷新项目列表</button></div>
+        </div>
+        <div class="grid2">
+          <div class="row"><label>或新建项目名称</label><input id="schema-new-project-name" placeholder="例如：支付系统API项目" /></div>
+          <div class="row"><label>新建项目描述（可选）</label><input id="schema-new-project-desc" placeholder="项目描述..." /></div>
+        </div>
+        <div class="row"><label>source_type</label><select id="schema-source"><option value="json">json</option><option value="url">url</option><option value="word">word</option><option value="pdf">pdf</option></select></div>
+        <div class="row"><label>content（JSON/文档文本）或 url</label><textarea id="schema-content">{
+  "openapi": "3.0.3",
+  "info": {"title": "Demo API"},
+  "paths": {"/pets": {"get": {"summary": "List pets","responses": {"200": {"description": "ok"}}}}}
+}</textarea></div>
+        <div class="row"><label>上传文件（.json/.docx/.pdf/.md/.txt）</label><input id="schema-file" type="file" accept=".json,.docx,.pdf,.md,.txt,text/markdown,text/plain,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></div>
+        <div class="row"><button id="import-schema">导入 Schema</button></div>
+        <pre id="schema-output"></pre>
+      </section>
+
+      <section id="module-ai" class="module">
+        <h2>AI 生成 API TestCase</h2>
+        <p class="hint">已合并“接口管理”：可在本模块按项目加载/勾选接口后生成。</p>
+        <div class="grid2">
+          <div class="row"><label>接口筛选 project</label><select id="endpoint-project-select"><option value="">-- 全部项目 --</option></select></div>
+          <div class="row"><label>schema_id（可选）</label><input id="endpoint-schema-id" placeholder="导入成功后自动填充" /></div>
+        </div>
+        <div class="grid2"><div class="row"><button id="load-endpoints">加载接口列表</button></div><div class="row"><button id="select-all-endpoints" class="btn2">全选/全不选</button></div></div>
+        <div id="endpoint-list" class="endpoint-list">暂无接口数据。</div>
+        <pre id="endpoint-output"></pre>
+
+        <div class="grid2">
+          <div class="row"><label>selected endpoint_ids（可选）</label><input id="ai-endpoint-id" placeholder="勾选后自动填充；留空则按 project 批量生成" /></div>
+          <div class="row"><label>project（可选，endpoint 为空时使用）</label><select id="ai-project-select"><option value="">-- 请选择项目 --</option></select></div>
+        </div>
+        <div class="row"><label>prompt</label><input id="ai-prompt" value="每个API各生成至少1条正向场景测试用例和2条负向场景测试用例" /></div>
+        <div class="row"><button id="ai-generate">生成</button></div>
+        <pre id="ai-output"></pre>
+      </section>
+
+      <section id="module-cases" class="module">
+        <h2>TestCase 查询</h2>
+        <p class="hint">支持按项目切换，列表以表格展示。</p>
+        <div class="grid2">
+          <div class="row"><label>project</label><select id="case-project-select"><option value="">-- 全部项目 --</option></select></div>
+          <div class="row"><label>endpoint（可选）</label><input id="case-endpoint" /></div>
+        </div>
+        <div class="grid2"><div class="row"><button id="list-cases">查询列表</button></div><div class="row"><button id="get-case" class="btn2">按ID详情</button></div></div>
+        <div class="row"><label>case_id</label><input id="case-id" /></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>标题</th><th>Project</th><th>Endpoint</th><th>AI生成</th><th>更新时间</th></tr></thead>
+            <tbody id="case-table-body"><tr><td colspan="6">暂无数据</td></tr></tbody>
+          </table>
+        </div>
+        <pre id="case-output"></pre>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    let endpointSelectAllState = false;
+    function pretty(targetId, data) { document.getElementById(targetId).textContent = JSON.stringify(data, null, 2); }
+    function switchModule(moduleId) {
+      document.querySelectorAll(".menu-btn").forEach((b) => b.classList.toggle("active", b.dataset.module === moduleId));
+      document.querySelectorAll(".module").forEach((m) => m.classList.toggle("active", m.id === moduleId));
+    }
+    document.querySelectorAll(".menu-btn").forEach((btn) => btn.addEventListener("click", () => switchModule(btn.dataset.module)));
+    async function request(url, method = "GET", body = null) {
+      const options = { method, headers: { "Accept": "application/json" } };
+      if (body !== null) { options.headers["Content-Type"] = "application/json"; options.body = JSON.stringify(body); }
+      const resp = await fetch(url, options);
+      let payload; try { payload = await resp.json(); } catch (e) { payload = { message: "Non-JSON response", status: resp.status }; }
+      if (!resp.ok) throw payload; return payload;
+    }
+    async function requestForm(url, formData) {
+      const resp = await fetch(url, { method: "POST", headers: { "Accept": "application/json" }, body: formData });
+      let payload; try { payload = await resp.json(); } catch (e) { payload = { message: "Non-JSON response", status: resp.status }; }
+      if (!resp.ok) throw payload; return payload;
+    }
+    async function loadProjects() {
+      const projects = await request("/api/v1/api-testing/projects");
+      const map = [
+        ["schema-project-select", "-- 请选择项目 --"],
+        ["endpoint-project-select", "-- 全部项目 --"],
+        ["ai-project-select", "-- 请选择项目 --"],
+        ["case-project-select", "-- 全部项目 --"],
+      ];
+      for (const [id, emptyLabel] of map) {
+        const sel = document.getElementById(id);
+        sel.innerHTML = `<option value="">${emptyLabel}</option>`;
+        for (const p of projects) {
+          const op = document.createElement("option");
+          op.value = String(p.id);
+          op.textContent = `${p.id} - ${p.name}`;
+          sel.appendChild(op);
+        }
+      }
+      return projects;
+    }
+    document.getElementById("refresh-projects").onclick = async () => { try { pretty("schema-output", await loadProjects()); } catch (e) { pretty("schema-output", e); } };
+
+    document.getElementById("save-provider").onclick = async () => { try { pretty("provider-output", await request("/api/v1/ai/providers/", "POST", { name: document.getElementById("provider-name").value, provider: document.getElementById("provider-provider").value, model_name: document.getElementById("provider-model").value, api_base: document.getElementById("provider-base").value, api_key_encrypted: document.getElementById("provider-key").value, is_active: true })); } catch (e) { pretty("provider-output", e); } };
+    document.getElementById("update-provider").onclick = async () => {
+      try {
+        const id = document.getElementById("provider-id").value.trim();
+        if (!id) throw { message: "请先填写 provider_id" };
+        pretty("provider-output", await request(`/api/v1/ai/providers/${encodeURIComponent(id)}/`, "PATCH", { name: document.getElementById("provider-name").value, provider: document.getElementById("provider-provider").value, model_name: document.getElementById("provider-model").value, api_base: document.getElementById("provider-base").value, api_key_encrypted: document.getElementById("provider-key").value, is_active: true }));
+      } catch (e) { pretty("provider-output", e); }
+    };
+    document.getElementById("load-provider").onclick = async () => {
+      try {
+        const id = document.getElementById("provider-id").value.trim();
+        if (!id) throw { message: "请先填写 provider_id" };
+        const data = await request(`/api/v1/ai/providers/${encodeURIComponent(id)}/`);
+        document.getElementById("provider-id").value = String(data.id || id);
+        document.getElementById("provider-name").value = data.name || "";
+        document.getElementById("provider-provider").value = data.provider || "openai";
+        document.getElementById("provider-model").value = data.model_name || "";
+        document.getElementById("provider-base").value = data.api_base || "";
+        document.getElementById("provider-key").value = data.api_key_encrypted || "";
+        pretty("provider-output", data);
+      } catch (e) { pretty("provider-output", e); }
+    };
+    document.getElementById("list-provider").onclick = async () => { try { pretty("provider-output", await request("/api/v1/ai/providers/")); } catch (e) { pretty("provider-output", e); } };
+
+    document.getElementById("save-prompt").onclick = async () => { try { pretty("prompt-output", await request("/api/v1/ai/prompts/", "POST", { scene: document.getElementById("prompt-scene").value, version: Number(document.getElementById("prompt-version").value), template_text: document.getElementById("prompt-text").value, is_default: true })); } catch (e) { pretty("prompt-output", e); } };
+    document.getElementById("list-prompt").onclick = async () => { try { pretty("prompt-output", await request("/api/v1/ai/prompts/?scene=api_case_gen")); } catch (e) { pretty("prompt-output", e); } };
+
+    document.getElementById("schema-file").onchange = (event) => {
+      const file = event.target.files && event.target.files[0]; if (!file) return;
+      const name = (file.name || "").toLowerCase(); const sourceSelect = document.getElementById("schema-source");
+      if (name.endsWith(".pdf")) sourceSelect.value = "pdf";
+      else if (name.endsWith(".docx") || name.endsWith(".md") || name.endsWith(".txt")) sourceSelect.value = "word";
+      else if (name.endsWith(".json")) sourceSelect.value = "json";
+    };
+    document.getElementById("import-schema").onclick = async () => {
+      try {
+        const source = document.getElementById("schema-source").value;
+        const content = document.getElementById("schema-content").value;
+        const selectedFile = document.getElementById("schema-file").files[0];
+        const projectId = document.getElementById("schema-project-select").value.trim();
+        const newProjectName = document.getElementById("schema-new-project-name").value.trim();
+        const newProjectDesc = document.getElementById("schema-new-project-desc").value.trim();
+        if (!projectId && !newProjectName) throw { message: "请先选择已有项目，或填写新建项目名称" };
+        let data;
+        if (selectedFile) {
+          const formData = new FormData();
+          formData.append("source_type", source);
+          formData.append("file", selectedFile);
+          if (projectId) formData.append("project_id", projectId);
+          if (newProjectName) { formData.append("new_project_name", newProjectName); formData.append("new_project_description", newProjectDesc); }
+          if (source === "url") formData.append("url", content); else if (content) formData.append("content", content);
+          data = await requestForm("/api/v1/api-testing/schemas/import", formData);
+        } else {
+          const body = source === "url" ? { source_type: source, url: content } : { source_type: source, content };
+          if (projectId) body.project_id = Number(projectId);
+          if (newProjectName) { body.new_project_name = newProjectName; body.new_project_description = newProjectDesc; }
+          data = await request("/api/v1/api-testing/schemas/import", "POST", body);
+        }
+        document.getElementById("endpoint-schema-id").value = data.schema_id || "";
+        const ids = Array.isArray(data.endpoint_ids) ? data.endpoint_ids.map(String) : [];
+        document.getElementById("ai-endpoint-id").value = ids.join(",");
+        await loadProjects();
+        if (projectId) {
+          document.getElementById("endpoint-project-select").value = projectId;
+          document.getElementById("ai-project-select").value = projectId;
+          document.getElementById("case-project-select").value = projectId;
+        }
+        pretty("schema-output", data);
+        switchModule("module-ai");
+      } catch (e) { pretty("schema-output", e); }
+    };
+
+    function getSelectedEndpointIds() {
+      const checks = document.querySelectorAll(".endpoint-item input[type='checkbox']");
+      const ids = []; for (const c of checks) if (c.checked) ids.push(Number(c.value));
+      return ids;
+    }
+    function syncSelectedEndpointIds() { document.getElementById("ai-endpoint-id").value = getSelectedEndpointIds().join(","); }
+    function renderEndpointList(items) {
+      const box = document.getElementById("endpoint-list"); box.innerHTML = "";
+      if (!Array.isArray(items) || items.length === 0) { box.textContent = "暂无接口数据。"; return; }
+      for (const item of items) {
+        const row = document.createElement("label");
+        row.className = "endpoint-item";
+        row.innerHTML = `<input type="checkbox" value="${item.id}" /> <span>[${String(item.method || "").toUpperCase()}] ${item.path}${item.summary ? " - " + item.summary : ""}</span>`;
+        row.querySelector("input").addEventListener("change", syncSelectedEndpointIds);
+        box.appendChild(row);
+      }
+    }
+    document.getElementById("load-endpoints").onclick = async () => {
+      try {
+        const schemaId = document.getElementById("endpoint-schema-id").value.trim();
+        const projectId = document.getElementById("endpoint-project-select").value.trim();
+        const params = new URLSearchParams();
+        if (schemaId) params.set("schema_id", schemaId);
+        if (projectId) params.set("project_id", projectId);
+        const query = params.toString() ? `?${params.toString()}` : "";
+        const data = await request(`/api/v1/api-testing/endpoints/${query}`);
+        renderEndpointList(data);
+        pretty("endpoint-output", data);
+      } catch (e) { pretty("endpoint-output", e); }
+    };
+    document.getElementById("select-all-endpoints").onclick = () => {
+      endpointSelectAllState = !endpointSelectAllState;
+      document.querySelectorAll(".endpoint-item input[type='checkbox']").forEach((c) => { c.checked = endpointSelectAllState; });
+      syncSelectedEndpointIds();
+    };
+
+    document.getElementById("ai-generate").onclick = async () => {
+      try {
+        const endpointIds = document.getElementById("ai-endpoint-id").value.trim().split(",").map((x) => Number(x.trim())).filter((x) => Number.isInteger(x) && x > 0);
+        const projectId = document.getElementById("ai-project-select").value.trim();
+        const body = { prompt: document.getElementById("ai-prompt").value };
+        if (endpointIds.length > 0) body.endpoint_ids = endpointIds;
+        else if (projectId) body.project_id = Number(projectId);
+        else throw { message: "请勾选 endpoint，或选择 project 后按项目批量生成" };
+        const data = await request("/api/v1/api-testing/test-cases/ai-generate", "POST", body);
+        const firstCase = Array.isArray(data.cases) && data.cases.length > 0 ? data.cases[0] : data;
+        if (firstCase && firstCase.id) {
+          document.getElementById("case-id").value = firstCase.id;
+          document.getElementById("case-endpoint").value = firstCase.endpoint || "";
+          if (firstCase.project) document.getElementById("case-project-select").value = String(firstCase.project);
+        }
+        pretty("ai-output", data);
+      } catch (e) { pretty("ai-output", e); }
+    };
+
+    function renderCaseTable(items) {
+      const tbody = document.getElementById("case-table-body"); tbody.innerHTML = "";
+      if (!Array.isArray(items) || items.length === 0) { tbody.innerHTML = '<tr><td colspan="6">暂无数据</td></tr>'; return; }
+      for (const item of items) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${item.id}</td><td>${item.title || ""}</td><td>${item.project || ""}</td><td>${item.endpoint || ""}</td><td>${item.generated_by_ai ? "是" : "否"}</td><td>${item.updated_at || ""}</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+    document.getElementById("list-cases").onclick = async () => {
+      try {
+        const params = new URLSearchParams();
+        const endpoint = document.getElementById("case-endpoint").value.trim();
+        const project = document.getElementById("case-project-select").value.trim();
+        if (endpoint) params.set("endpoint", endpoint);
+        if (project) params.set("project", project);
+        const data = await request(`/api/v1/api-testing/test-cases/?${params.toString()}`);
+        renderCaseTable(data);
+        pretty("case-output", { count: Array.isArray(data) ? data.length : 0 });
+      } catch (e) { pretty("case-output", e); }
+    };
+    document.getElementById("get-case").onclick = async () => {
+      try { pretty("case-output", await request(`/api/v1/api-testing/test-cases/${encodeURIComponent(document.getElementById("case-id").value)}/`)); }
+      catch (e) { pretty("case-output", e); }
+    };
+
+    loadProjects().catch(() => {});
+  </script>
+</body>
+</html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Testing Console</title>
+  <style>
+    :root { --blue:#1e66f5; --blue2:#0f4acc; --bg:#f4f8ff; --panel:#fff; --text:#1f2a44; --sub:#70809f; --bd:#d8e3fb; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:"Segoe UI",Arial,sans-serif; background:var(--bg); color:var(--text); }
+    .layout { min-height:100vh; display:grid; grid-template-columns:240px 1fr; }
+    .sidebar { background:linear-gradient(180deg,#0b3a9e,#1e66f5); color:#fff; padding:16px 12px; }
+    .brand { font-size:18px; font-weight:700; margin:8px; }
+    .menu { display:flex; flex-direction:column; gap:8px; }
+    .menu button { width:100%; text-align:left; border:1px solid rgba(255,255,255,.3); background:rgba(255,255,255,.08); color:#fff; padding:10px 12px; border-radius:8px; cursor:pointer; }
+    .menu button.active { background:#fff; color:var(--blue2); font-weight:600; border-color:#fff; }
+    .main { padding:20px; }
+    .title { font-size:24px; font-weight:700; margin-bottom:14px; }
+    .module { display:none; background:var(--panel); border:1px solid var(--bd); border-radius:12px; padding:16px; box-shadow:0 4px 16px rgba(24,75,180,.06); }
+    .module.active { display:block; }
+    h2 { margin:0 0 8px; font-size:18px; }
+    .hint { margin:0 0 12px; color:var(--sub); font-size:13px; }
+    .row { margin:8px 0; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    label { display:block; font-size:12px; color:var(--sub); margin-bottom:4px; font-weight:600; }
+    input, select, textarea, button { width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--bd); font-size:14px; }
+    textarea { min-height:120px; font-family:Consolas,monospace; }
+    button { border:none; background:var(--blue); color:#fff; font-weight:600; cursor:pointer; }
+    button:hover { background:var(--blue2); }
+    .btn2 { background:#ebf2ff; color:var(--blue2); border:1px solid #c5d8ff; }
+    .btn2:hover { background:#dce9ff; }
+    pre { margin-top:10px; background:#f8fbff; border:1px solid var(--bd); border-radius:8px; padding:10px; max-height:280px; overflow:auto; font-size:12px; }
+    .endpoint-list { border:1px solid var(--bd); border-radius:8px; max-height:240px; overflow:auto; padding:8px; background:#f9fbff; }
+    .endpoint-item { display:flex; gap:8px; align-items:center; margin:6px 0; font-size:13px; }
+    .table-wrap { border:1px solid var(--bd); border-radius:8px; overflow:auto; margin-top:8px; }
+    table { width:100%; border-collapse: collapse; background:#fff; }
+    th, td { border-bottom:1px solid #e7efff; padding:8px; text-align:left; font-size:13px; }
+    th { background:#eef4ff; color:#234; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">AITS Workbench</div>
+      <div class="menu">
+        <button class="menu-btn active" data-module="module-provider">模型配置</button>
+        <button class="menu-btn" data-module="module-prompt">Prompt 配置</button>
+        <button class="menu-btn" data-module="module-schema">OpenAPI 导入</button>
+        <button class="menu-btn" data-module="module-endpoints">接口管理</button>
+        <button class="menu-btn" data-module="module-ai">AI 生成用例</button>
+        <button class="menu-btn" data-module="module-cases">TestCase 查询</button>
+      </div>
+    </aside>
+    <main class="main">
+      <div class="title">API 自动化测试控制台</div>
+
+      <section id="module-provider" class="module active">
+        <h2>模型配置（LLM Provider）</h2>
+        <p class="hint">支持创建、加载、更新已存在 Provider。</p>
+        <div class="grid2">
+          <div class="row"><label>provider_id</label><input id="provider-id" placeholder="按ID加载/更新使用" /></div>
+          <div class="row" style="display:flex;align-items:flex-end;"><button id="load-provider" class="btn2">按ID加载</button></div>
+        </div>
+        <div class="grid2">
+          <div class="row"><label>name</label><input id="provider-name" value="openai-main" /></div>
+          <div class="row"><label>provider</label><select id="provider-provider"><option value="openai">openai</option><option value="anthropic">anthropic</option><option value="qwen">qwen</option><option value="deepseek">deepseek</option><option value="glm">glm</option><option value="minimax">minimax</option></select></div>
+        </div>
+        <div class="grid2">
+          <div class="row"><label>model_name</label><input id="provider-model" value="gpt-4o-mini" /></div>
+          <div class="row"><label>api_base</label><input id="provider-base" placeholder="https://api.openai.com/v1" /></div>
+        </div>
+        <div class="row"><label>api_key_encrypted</label><input id="provider-key" placeholder="sk-..." /></div>
+        <div class="grid2"><div class="row"><button id="save-provider">创建</button></div><div class="row"><button id="update-provider" class="btn2">更新</button></div></div>
+        <div class="row"><button id="list-provider" class="btn2">刷新列表</button></div>
+        <pre id="provider-output"></pre>
+      </section>
+
+      <section id="module-prompt" class="module">
+        <h2>Prompt 配置</h2>
+        <p class="hint">配置 `api_case_gen` 场景默认提示词。</p>
+        <div class="grid2">
+          <div class="row"><label>scene</label><input id="prompt-scene" value="api_case_gen" /></div>
+          <div class="row"><label>version</label><input id="prompt-version" type="number" value="1" /></div>
+        </div>
+        <div class="row"><label>template_text</label><textarea id="prompt-text">Generate API test cases in JSON array format with fields: title, request_data, assertions.</textarea></div>
+        <div class="grid2"><div class="row"><button id="save-prompt">创建 Prompt</button></div><div class="row"><button id="list-prompt" class="btn2">刷新列表</button></div></div>
+        <pre id="prompt-output"></pre>
+      </section>
+
+      <section id="module-schema" class="module">
+        <h2>OpenAPI 导入</h2>
+        <p class="hint">先选择已有项目或新建项目，再导入接口。</p>
+        <div class="grid2">
+          <div class="row"><label>选择已有项目</label><select id="schema-project-select"><option value="">-- 请选择项目 --</option></select></div>
+          <div class="row" style="display:flex;align-items:flex-end;"><button id="refresh-projects" class="btn2">刷新项目列表</button></div>
+        </div>
+        <div class="grid2">
+          <div class="row"><label>或新建项目名称</label><input id="schema-new-project-name" placeholder="例如：支付系统API项目" /></div>
+          <div class="row"><label>新建项目描述（可选）</label><input id="schema-new-project-desc" placeholder="项目描述..." /></div>
+        </div>
+        <div class="row"><label>source_type</label><select id="schema-source"><option value="json">json</option><option value="url">url</option><option value="word">word</option><option value="pdf">pdf</option></select></div>
+        <div class="row"><label>content（JSON/文档文本）或 url</label><textarea id="schema-content">{
+  "openapi": "3.0.3",
+  "info": {"title": "Demo API"},
+  "paths": {"/pets": {"get": {"summary": "List pets","responses": {"200": {"description": "ok"}}}}}
+}</textarea></div>
+        <div class="row"><label>上传文件（.json/.docx/.pdf/.md/.txt）</label><input id="schema-file" type="file" accept=".json,.docx,.pdf,.md,.txt,text/markdown,text/plain,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></div>
+        <div class="row"><button id="import-schema">导入 Schema</button></div>
+        <pre id="schema-output"></pre>
+      </section>
+
+      <section id="module-endpoints" class="module">
+        <h2>接口管理</h2>
+        <p class="hint">可按项目切换展示接口，并勾选用于 AI 生成。</p>
+        <div class="grid2">
+          <div class="row"><label>项目筛选</label><select id="endpoint-project-select"><option value="">-- 全部项目 --</option></select></div>
+          <div class="row"><label>schema_id（可选）</label><input id="endpoint-schema-id" placeholder="导入成功后自动填充" /></div>
+        </div>
+        <div class="row"><label>endpoint_ids（导入返回）</label><input id="endpoint-ids" placeholder="如：1,2,3" /></div>
+        <div class="grid2"><div class="row"><button id="load-endpoints">加载接口列表</button></div><div class="row"><button id="select-all-endpoints" class="btn2">全选/全不选</button></div></div>
+        <div id="endpoint-list" class="endpoint-list">暂无已导入接口。</div>
+        <pre id="endpoint-output"></pre>
+      </section>
+
+      <section id="module-ai" class="module">
+        <h2>AI 生成 API TestCase</h2>
+        <p class="hint">endpoint 现在可选：不勾选接口时，可按 project 对全项目接口批量生成。</p>
+        <div class="grid2">
+          <div class="row"><label>selected endpoint_ids（可选）</label><input id="ai-endpoint-id" placeholder="勾选接口后自动填充；留空则按项目生成" /></div>
+          <div class="row"><label>project（可选，endpoint 为空时建议选择）</label><select id="ai-project-select"><option value="">-- 请选择项目 --</option></select></div>
+        </div>
+        <div class="row"><label>prompt</label><input id="ai-prompt" value="每个API各生成至少1条正向场景测试用例和2条负向场景测试用例" /></div>
+        <div class="row"><button id="ai-generate">生成</button></div>
+        <pre id="ai-output"></pre>
+      </section>
+
+      <section id="module-cases" class="module">
+        <h2>TestCase 查询</h2>
+        <p class="hint">支持按项目切换，列表以表格展示（不再 JSON 平铺）。</p>
+        <div class="grid2">
+          <div class="row"><label>project</label><select id="case-project-select"><option value="">-- 全部项目 --</option></select></div>
+          <div class="row"><label>endpoint（可选）</label><input id="case-endpoint" /></div>
+        </div>
+        <div class="grid2"><div class="row"><button id="list-cases">查询列表</button></div><div class="row"><button id="get-case" class="btn2">按ID详情</button></div></div>
+        <div class="row"><label>case_id</label><input id="case-id" /></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>ID</th><th>标题</th><th>Project</th><th>Endpoint</th><th>AI生成</th><th>更新时间</th></tr>
+            </thead>
+            <tbody id="case-table-body"><tr><td colspan="6">暂无数据</td></tr></tbody>
+          </table>
+        </div>
+        <pre id="case-output"></pre>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    let endpointSelectAllState = false;
+    function pretty(targetId, data) { document.getElementById(targetId).textContent = JSON.stringify(data, null, 2); }
+    function switchModule(moduleId) {
+      document.querySelectorAll(".menu-btn").forEach((b) => b.classList.toggle("active", b.dataset.module === moduleId));
+      document.querySelectorAll(".module").forEach((m) => m.classList.toggle("active", m.id === moduleId));
+    }
+    document.querySelectorAll(".menu-btn").forEach((btn) => btn.addEventListener("click", () => switchModule(btn.dataset.module)));
+    async function request(url, method = "GET", body = null) {
+      const options = { method, headers: { "Accept": "application/json" } };
+      if (body !== null) { options.headers["Content-Type"] = "application/json"; options.body = JSON.stringify(body); }
+      const resp = await fetch(url, options);
+      let payload; try { payload = await resp.json(); } catch (e) { payload = { message: "Non-JSON response", status: resp.status }; }
+      if (!resp.ok) throw payload; return payload;
+    }
+    async function requestForm(url, formData) {
+      const resp = await fetch(url, { method: "POST", headers: { "Accept": "application/json" }, body: formData });
+      let payload; try { payload = await resp.json(); } catch (e) { payload = { message: "Non-JSON response", status: resp.status }; }
+      if (!resp.ok) throw payload; return payload;
+    }
+    async function loadProjects() {
+      const projects = await request("/api/v1/api-testing/projects");
+      const map = [
+        ["schema-project-select", "-- 请选择项目 --"],
+        ["endpoint-project-select", "-- 全部项目 --"],
+        ["ai-project-select", "-- 请选择项目 --"],
+        ["case-project-select", "-- 全部项目 --"],
+      ];
+      for (const [id, emptyLabel] of map) {
+        const sel = document.getElementById(id);
+        sel.innerHTML = `<option value="">${emptyLabel}</option>`;
+        for (const p of projects) {
+          const op = document.createElement("option");
+          op.value = String(p.id);
+          op.textContent = `${p.id} - ${p.name}`;
+          sel.appendChild(op);
+        }
+      }
+      return projects;
+    }
+    document.getElementById("refresh-projects").onclick = async () => { try { pretty("schema-output", await loadProjects()); } catch (e) { pretty("schema-output", e); } };
+
+    document.getElementById("save-provider").onclick = async () => {
+      try { pretty("provider-output", await request("/api/v1/ai/providers/", "POST", { name: document.getElementById("provider-name").value, provider: document.getElementById("provider-provider").value, model_name: document.getElementById("provider-model").value, api_base: document.getElementById("provider-base").value, api_key_encrypted: document.getElementById("provider-key").value, is_active: true })); } catch (e) { pretty("provider-output", e); }
+    };
+    document.getElementById("update-provider").onclick = async () => {
+      try {
+        const id = document.getElementById("provider-id").value.trim();
+        if (!id) throw { message: "请先填写 provider_id" };
+        pretty("provider-output", await request(`/api/v1/ai/providers/${encodeURIComponent(id)}/`, "PATCH", { name: document.getElementById("provider-name").value, provider: document.getElementById("provider-provider").value, model_name: document.getElementById("provider-model").value, api_base: document.getElementById("provider-base").value, api_key_encrypted: document.getElementById("provider-key").value, is_active: true }));
+      } catch (e) { pretty("provider-output", e); }
+    };
+    document.getElementById("load-provider").onclick = async () => {
+      try {
+        const id = document.getElementById("provider-id").value.trim();
+        if (!id) throw { message: "请先填写 provider_id" };
+        const data = await request(`/api/v1/ai/providers/${encodeURIComponent(id)}/`);
+        document.getElementById("provider-id").value = String(data.id || id);
+        document.getElementById("provider-name").value = data.name || "";
+        document.getElementById("provider-provider").value = data.provider || "openai";
+        document.getElementById("provider-model").value = data.model_name || "";
+        document.getElementById("provider-base").value = data.api_base || "";
+        document.getElementById("provider-key").value = data.api_key_encrypted || "";
+        pretty("provider-output", data);
+      } catch (e) { pretty("provider-output", e); }
+    };
+    document.getElementById("list-provider").onclick = async () => { try { pretty("provider-output", await request("/api/v1/ai/providers/")); } catch (e) { pretty("provider-output", e); } };
+    document.getElementById("save-prompt").onclick = async () => { try { pretty("prompt-output", await request("/api/v1/ai/prompts/", "POST", { scene: document.getElementById("prompt-scene").value, version: Number(document.getElementById("prompt-version").value), template_text: document.getElementById("prompt-text").value, is_default: true })); } catch (e) { pretty("prompt-output", e); } };
+    document.getElementById("list-prompt").onclick = async () => { try { pretty("prompt-output", await request("/api/v1/ai/prompts/?scene=api_case_gen")); } catch (e) { pretty("prompt-output", e); } };
+
+    document.getElementById("schema-file").onchange = (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const name = (file.name || "").toLowerCase();
+      const sourceSelect = document.getElementById("schema-source");
+      if (name.endsWith(".pdf")) sourceSelect.value = "pdf";
+      else if (name.endsWith(".docx") || name.endsWith(".md") || name.endsWith(".txt")) sourceSelect.value = "word";
+      else if (name.endsWith(".json")) sourceSelect.value = "json";
+    };
+    document.getElementById("import-schema").onclick = async () => {
+      try {
+        const source = document.getElementById("schema-source").value;
+        const content = document.getElementById("schema-content").value;
+        const selectedFile = document.getElementById("schema-file").files[0];
+        const projectId = document.getElementById("schema-project-select").value.trim();
+        const newProjectName = document.getElementById("schema-new-project-name").value.trim();
+        const newProjectDesc = document.getElementById("schema-new-project-desc").value.trim();
+        if (!projectId && !newProjectName) throw { message: "请先选择已有项目，或填写新建项目名称" };
+
+        let data;
+        if (selectedFile) {
+          const formData = new FormData();
+          formData.append("source_type", source);
+          formData.append("file", selectedFile);
+          if (projectId) formData.append("project_id", projectId);
+          if (newProjectName) { formData.append("new_project_name", newProjectName); formData.append("new_project_description", newProjectDesc); }
+          if (source === "url") formData.append("url", content); else if (content) formData.append("content", content);
+          data = await requestForm("/api/v1/api-testing/schemas/import", formData);
+        } else {
+          const body = source === "url" ? { source_type: source, url: content } : { source_type: source, content };
+          if (projectId) body.project_id = Number(projectId);
+          if (newProjectName) { body.new_project_name = newProjectName; body.new_project_description = newProjectDesc; }
+          data = await request("/api/v1/api-testing/schemas/import", "POST", body);
+        }
+        document.getElementById("endpoint-schema-id").value = data.schema_id || "";
+        const ids = Array.isArray(data.endpoint_ids) ? data.endpoint_ids.map(String) : [];
+        document.getElementById("endpoint-ids").value = ids.join(",");
+        document.getElementById("ai-endpoint-id").value = ids.join(",");
+        await loadProjects();
+        if (projectId) {
+          document.getElementById("endpoint-project-select").value = projectId;
+          document.getElementById("ai-project-select").value = projectId;
+          document.getElementById("case-project-select").value = projectId;
+        }
+        pretty("schema-output", data);
+        switchModule("module-endpoints");
+      } catch (e) { pretty("schema-output", e); }
+    };
+
+    function getSelectedEndpointIds() {
+      const checks = document.querySelectorAll(".endpoint-item input[type='checkbox']");
+      const ids = [];
+      for (const c of checks) if (c.checked) ids.push(Number(c.value));
+      return ids;
+    }
+    function syncSelectedEndpointIds() { document.getElementById("ai-endpoint-id").value = getSelectedEndpointIds().join(","); }
+    function renderEndpointList(items) {
+      const box = document.getElementById("endpoint-list");
+      box.innerHTML = "";
+      if (!Array.isArray(items) || items.length === 0) { box.textContent = "暂无接口数据。"; return; }
+      for (const item of items) {
+        const row = document.createElement("label");
+        row.className = "endpoint-item";
+        row.innerHTML = `<input type="checkbox" value="${item.id}" /> <span>[${String(item.method || "").toUpperCase()}] ${item.path}${item.summary ? " - " + item.summary : ""}</span>`;
+        row.querySelector("input").addEventListener("change", syncSelectedEndpointIds);
+        box.appendChild(row);
+      }
+    }
+    document.getElementById("load-endpoints").onclick = async () => {
+      try {
+        const schemaId = document.getElementById("endpoint-schema-id").value.trim();
+        const projectId = document.getElementById("endpoint-project-select").value.trim();
+        const params = new URLSearchParams();
+        if (schemaId) params.set("schema_id", schemaId);
+        if (projectId) params.set("project_id", projectId);
+        const query = params.toString() ? `?${params.toString()}` : "";
+        const data = await request(`/api/v1/api-testing/endpoints/${query}`);
+        renderEndpointList(data);
+        pretty("endpoint-output", data);
+      } catch (e) { pretty("endpoint-output", e); }
+    };
+    document.getElementById("select-all-endpoints").onclick = () => {
+      endpointSelectAllState = !endpointSelectAllState;
+      document.querySelectorAll(".endpoint-item input[type='checkbox']").forEach((c) => { c.checked = endpointSelectAllState; });
+      syncSelectedEndpointIds();
+    };
+
+    document.getElementById("ai-generate").onclick = async () => {
+      try {
+        const endpointIds = document.getElementById("ai-endpoint-id").value.trim().split(",").map((x) => Number(x.trim())).filter((x) => Number.isInteger(x) && x > 0);
+        const projectId = document.getElementById("ai-project-select").value.trim();
+        const body = { prompt: document.getElementById("ai-prompt").value };
+        if (endpointIds.length > 0) body.endpoint_ids = endpointIds;
+        else if (projectId) body.project_id = Number(projectId);
+        else throw { message: "请勾选 endpoint，或选择 project 后按项目批量生成" };
+        const data = await request("/api/v1/api-testing/test-cases/ai-generate", "POST", body);
+        const firstCase = Array.isArray(data.cases) && data.cases.length > 0 ? data.cases[0] : data;
+        if (firstCase && firstCase.id) {
+          document.getElementById("case-id").value = firstCase.id;
+          document.getElementById("case-endpoint").value = firstCase.endpoint || "";
+          if (firstCase.project) document.getElementById("case-project-select").value = String(firstCase.project);
+        }
+        pretty("ai-output", data);
+      } catch (e) { pretty("ai-output", e); }
+    };
+
+    function renderCaseTable(items) {
+      const tbody = document.getElementById("case-table-body");
+      tbody.innerHTML = "";
+      if (!Array.isArray(items) || items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6">暂无数据</td></tr>';
+        return;
+      }
+      for (const item of items) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${item.id}</td><td>${item.title || ""}</td><td>${item.project || ""}</td><td>${item.endpoint || ""}</td><td>${item.generated_by_ai ? "是" : "否"}</td><td>${item.updated_at || ""}</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    document.getElementById("list-cases").onclick = async () => {
+      try {
+        const params = new URLSearchParams();
+        const endpoint = document.getElementById("case-endpoint").value.trim();
+        const project = document.getElementById("case-project-select").value.trim();
+        if (endpoint) params.set("endpoint", endpoint);
+        if (project) params.set("project", project);
+        const data = await request(`/api/v1/api-testing/test-cases/?${params.toString()}`);
+        renderCaseTable(data);
+        pretty("case-output", { count: Array.isArray(data) ? data.length : 0 });
+      } catch (e) { pretty("case-output", e); }
+    };
+    document.getElementById("get-case").onclick = async () => {
+      try { pretty("case-output", await request(`/api/v1/api-testing/test-cases/${encodeURIComponent(document.getElementById("case-id").value)}/`)); }
+      catch (e) { pretty("case-output", e); }
+    };
+
+    loadProjects().catch(() => {});
+  </script>
+</body>
+</html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Testing Console</title>
+  <style>
+    :root { --blue:#1e66f5; --blue2:#0f4acc; --bg:#f4f8ff; --panel:#fff; --text:#1f2a44; --sub:#70809f; --bd:#d8e3fb; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:"Segoe UI",Arial,sans-serif; background:var(--bg); color:var(--text); }
+    .layout { min-height:100vh; display:grid; grid-template-columns:240px 1fr; }
+    .sidebar { background:linear-gradient(180deg,#0b3a9e,#1e66f5); color:#fff; padding:16px 12px; }
+    .brand { font-size:18px; font-weight:700; margin:8px; }
+    .menu { display:flex; flex-direction:column; gap:8px; }
+    .menu button { width:100%; text-align:left; border:1px solid rgba(255,255,255,.3); background:rgba(255,255,255,.08); color:#fff; padding:10px 12px; border-radius:8px; cursor:pointer; }
+    .menu button.active { background:#fff; color:var(--blue2); font-weight:600; border-color:#fff; }
+    .main { padding:20px; }
+    .title { font-size:24px; font-weight:700; margin-bottom:14px; }
+    .module { display:none; background:var(--panel); border:1px solid var(--bd); border-radius:12px; padding:16px; box-shadow:0 4px 16px rgba(24,75,180,.06); }
+    .module.active { display:block; }
+    h2 { margin:0 0 8px; font-size:18px; }
+    .hint { margin:0 0 12px; color:var(--sub); font-size:13px; }
+    .row { margin:8px 0; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    label { display:block; font-size:12px; color:var(--sub); margin-bottom:4px; font-weight:600; }
+    input, select, textarea, button { width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--bd); font-size:14px; }
+    textarea { min-height:120px; font-family:Consolas,monospace; }
+    button { border:none; background:var(--blue); color:#fff; font-weight:600; cursor:pointer; }
+    button:hover { background:var(--blue2); }
+    .btn2 { background:#ebf2ff; color:var(--blue2); border:1px solid #c5d8ff; }
+    .btn2:hover { background:#dce9ff; }
+    pre { margin-top:10px; background:#f8fbff; border:1px solid var(--bd); border-radius:8px; padding:10px; max-height:280px; overflow:auto; font-size:12px; }
+    .endpoint-list { border:1px solid var(--bd); border-radius:8px; max-height:240px; overflow:auto; padding:8px; background:#f9fbff; }
+    .endpoint-item { display:flex; gap:8px; align-items:center; margin:6px 0; font-size:13px; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">AITS Workbench</div>
+      <div class="menu">
+        <button class="menu-btn active" data-module="module-provider">模型配置</button>
+        <button class="menu-btn" data-module="module-prompt">Prompt 配置</button>
+        <button class="menu-btn" data-module="module-schema">OpenAPI 导入</button>
+        <button class="menu-btn" data-module="module-endpoints">接口管理</button>
+        <button class="menu-btn" data-module="module-ai">AI 生成用例</button>
+        <button class="menu-btn" data-module="module-cases">TestCase 查询</button>
+      </div>
+    </aside>
+    <main class="main">
+      <div class="title">API 自动化测试控制台</div>
+
+      <section id="module-provider" class="module active">
+        <h2>模型配置（LLM Provider）</h2>
+        <p class="hint">支持创建、加载、更新已存在 Provider。</p>
+        <div class="grid2">
+          <div class="row"><label>provider_id</label><input id="provider-id" placeholder="按ID加载/更新使用" /></div>
+          <div class="row" style="display:flex;align-items:flex-end;"><button id="load-provider" class="btn2">按ID加载</button></div>
+        </div>
+        <div class="grid2">
+          <div class="row"><label>name</label><input id="provider-name" value="openai-main" /></div>
+          <div class="row"><label>provider</label><select id="provider-provider"><option value="openai">openai</option><option value="anthropic">anthropic</option><option value="qwen">qwen</option><option value="deepseek">deepseek</option><option value="glm">glm</option><option value="minimax">minimax</option></select></div>
+        </div>
+        <div class="grid2">
+          <div class="row"><label>model_name</label><input id="provider-model" value="gpt-4o-mini" /></div>
+          <div class="row"><label>api_base</label><input id="provider-base" placeholder="https://api.openai.com/v1" /></div>
+        </div>
+        <div class="row"><label>api_key_encrypted</label><input id="provider-key" placeholder="sk-..." /></div>
+        <div class="grid2"><div class="row"><button id="save-provider">创建</button></div><div class="row"><button id="update-provider" class="btn2">更新</button></div></div>
+        <div class="row"><button id="list-provider" class="btn2">刷新列表</button></div>
+        <pre id="provider-output"></pre>
+      </section>
+
+      <section id="module-prompt" class="module">
+        <h2>Prompt 配置</h2>
+        <p class="hint">配置 `api_case_gen` 场景默认提示词。</p>
+        <div class="grid2">
+          <div class="row"><label>scene</label><input id="prompt-scene" value="api_case_gen" /></div>
+          <div class="row"><label>version</label><input id="prompt-version" type="number" value="1" /></div>
+        </div>
+        <div class="row"><label>template_text</label><textarea id="prompt-text">Generate API test cases in JSON array format with fields: title, request_data, assertions.</textarea></div>
+        <div class="grid2"><div class="row"><button id="save-prompt">创建 Prompt</button></div><div class="row"><button id="list-prompt" class="btn2">刷新列表</button></div></div>
+        <pre id="prompt-output"></pre>
+      </section>
+
+      <section id="module-schema" class="module">
+        <h2>OpenAPI 导入</h2>
+        <p class="hint">先选择已有项目或新建项目，再导入接口。</p>
+        <div class="grid2">
+          <div class="row">
+            <label>选择已有项目</label>
+            <select id="schema-project-select"><option value="">-- 请选择项目 --</option></select>
+          </div>
+          <div class="row" style="display:flex;align-items:flex-end;">
+            <button id="refresh-projects" class="btn2">刷新项目列表</button>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="row"><label>或新建项目名称</label><input id="schema-new-project-name" placeholder="例如：支付系统API项目" /></div>
+          <div class="row"><label>新建项目描述（可选）</label><input id="schema-new-project-desc" placeholder="项目描述..." /></div>
+        </div>
+        <div class="row"><label>source_type</label><select id="schema-source"><option value="json">json</option><option value="url">url</option><option value="word">word</option><option value="pdf">pdf</option></select></div>
+        <div class="row"><label>content（JSON/文档文本）或 url</label><textarea id="schema-content">{
+  "openapi": "3.0.3",
+  "info": {"title": "Demo API"},
+  "paths": {"/pets": {"get": {"summary": "List pets","responses": {"200": {"description": "ok"}}}}}
+}</textarea></div>
+        <div class="row"><label>上传文件（.json/.docx/.pdf/.md/.txt）</label><input id="schema-file" type="file" accept=".json,.docx,.pdf,.md,.txt,text/markdown,text/plain,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></div>
+        <div class="row"><button id="import-schema">导入 Schema</button></div>
+        <pre id="schema-output"></pre>
+      </section>
+
+      <section id="module-endpoints" class="module">
+        <h2>接口管理</h2>
+        <p class="hint">可按项目切换展示接口，并勾选用于 AI 生成。</p>
+        <div class="grid2">
+          <div class="row"><label>项目筛选</label><select id="endpoint-project-select"><option value="">-- 全部项目 --</option></select></div>
+          <div class="row"><label>schema_id（可选）</label><input id="endpoint-schema-id" placeholder="导入成功后自动填充" /></div>
+        </div>
+        <div class="row"><label>endpoint_ids（导入返回）</label><input id="endpoint-ids" placeholder="如：1,2,3" /></div>
+        <div class="grid2"><div class="row"><button id="load-endpoints">加载接口列表</button></div><div class="row"><button id="select-all-endpoints" class="btn2">全选/全不选</button></div></div>
+        <div id="endpoint-list" class="endpoint-list">暂无已导入接口。</div>
+        <pre id="endpoint-output"></pre>
+      </section>
+
+      <section id="module-ai" class="module">
+        <h2>AI 生成 API TestCase</h2>
+        <p class="hint">在接口管理里勾选接口后，输入 prompt 批量生成。</p>
+        <div class="grid2">
+          <div class="row"><label>selected endpoint_ids（自动）</label><input id="ai-endpoint-id" placeholder="勾选接口后自动填充，支持逗号分隔" /></div>
+          <div class="row"><label>prompt</label><input id="ai-prompt" value="每个API各生成至少1条正向场景测试用例和2条负向场景测试用例" /></div>
+        </div>
+        <div class="row"><button id="ai-generate">生成</button></div>
+        <pre id="ai-output"></pre>
+      </section>
+
+      <section id="module-cases" class="module">
+        <h2>TestCase 查询</h2>
+        <p class="hint">支持按 endpoint/project 过滤并查看详情。</p>
+        <div class="grid2"><div class="row"><label>endpoint</label><input id="case-endpoint" /></div><div class="row"><label>project</label><input id="case-project" /></div></div>
+        <div class="grid2"><div class="row"><button id="list-cases">查询列表</button></div><div class="row"><button id="get-case" class="btn2">按ID详情</button></div></div>
+        <div class="row"><label>case_id</label><input id="case-id" /></div>
+        <pre id="case-output"></pre>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    let endpointSelectAllState = false;
+
+    function pretty(targetId, data) { document.getElementById(targetId).textContent = JSON.stringify(data, null, 2); }
+    function switchModule(moduleId) {
+      document.querySelectorAll(".menu-btn").forEach((b) => b.classList.toggle("active", b.dataset.module === moduleId));
+      document.querySelectorAll(".module").forEach((m) => m.classList.toggle("active", m.id === moduleId));
+    }
+    document.querySelectorAll(".menu-btn").forEach((btn) => btn.addEventListener("click", () => switchModule(btn.dataset.module)));
+
+    async function request(url, method = "GET", body = null) {
+      const options = { method, headers: { "Accept": "application/json" } };
+      if (body !== null) { options.headers["Content-Type"] = "application/json"; options.body = JSON.stringify(body); }
+      const resp = await fetch(url, options);
+      let payload; try { payload = await resp.json(); } catch (e) { payload = { message: "Non-JSON response", status: resp.status }; }
+      if (!resp.ok) throw payload; return payload;
+    }
+    async function requestForm(url, formData) {
+      const resp = await fetch(url, { method: "POST", headers: { "Accept": "application/json" }, body: formData });
+      let payload; try { payload = await resp.json(); } catch (e) { payload = { message: "Non-JSON response", status: resp.status }; }
+      if (!resp.ok) throw payload; return payload;
+    }
+
+    async function loadProjects() {
+      const projects = await request("/api/v1/api-testing/projects");
+      const schemaSel = document.getElementById("schema-project-select");
+      const endpointSel = document.getElementById("endpoint-project-select");
+      schemaSel.innerHTML = '<option value="">-- 请选择项目 --</option>';
+      endpointSel.innerHTML = '<option value="">-- 全部项目 --</option>';
+      for (const p of projects) {
+        const op1 = document.createElement("option"); op1.value = String(p.id); op1.textContent = `${p.id} - ${p.name}`; schemaSel.appendChild(op1);
+        const op2 = document.createElement("option"); op2.value = String(p.id); op2.textContent = `${p.id} - ${p.name}`; endpointSel.appendChild(op2);
+      }
+      return projects;
+    }
+
+    document.getElementById("refresh-projects").onclick = async () => {
+      try { pretty("schema-output", await loadProjects()); } catch (e) { pretty("schema-output", e); }
+    };
+
+    document.getElementById("save-provider").onclick = async () => {
+      try { pretty("provider-output", await request("/api/v1/ai/providers/", "POST", {
+        name: document.getElementById("provider-name").value,
+        provider: document.getElementById("provider-provider").value,
+        model_name: document.getElementById("provider-model").value,
+        api_base: document.getElementById("provider-base").value,
+        api_key_encrypted: document.getElementById("provider-key").value,
+        is_active: true
+      })); } catch (e) { pretty("provider-output", e); }
+    };
+    document.getElementById("update-provider").onclick = async () => {
+      try {
+        const id = document.getElementById("provider-id").value.trim();
+        if (!id) throw { message: "请先填写 provider_id" };
+        pretty("provider-output", await request(`/api/v1/ai/providers/${encodeURIComponent(id)}/`, "PATCH", {
+          name: document.getElementById("provider-name").value,
+          provider: document.getElementById("provider-provider").value,
+          model_name: document.getElementById("provider-model").value,
+          api_base: document.getElementById("provider-base").value,
+          api_key_encrypted: document.getElementById("provider-key").value,
+          is_active: true
+        }));
+      } catch (e) { pretty("provider-output", e); }
+    };
+    document.getElementById("load-provider").onclick = async () => {
+      try {
+        const id = document.getElementById("provider-id").value.trim();
+        if (!id) throw { message: "请先填写 provider_id" };
+        const data = await request(`/api/v1/ai/providers/${encodeURIComponent(id)}/`);
+        document.getElementById("provider-id").value = String(data.id || id);
+        document.getElementById("provider-name").value = data.name || "";
+        document.getElementById("provider-provider").value = data.provider || "openai";
+        document.getElementById("provider-model").value = data.model_name || "";
+        document.getElementById("provider-base").value = data.api_base || "";
+        document.getElementById("provider-key").value = data.api_key_encrypted || "";
+        pretty("provider-output", data);
+      } catch (e) { pretty("provider-output", e); }
+    };
+    document.getElementById("list-provider").onclick = async () => {
+      try {
+        const data = await request("/api/v1/ai/providers/");
+        if (Array.isArray(data) && data.length > 0) document.getElementById("provider-id").value = String(data[0].id);
+        pretty("provider-output", data);
+      } catch (e) { pretty("provider-output", e); }
+    };
+
+    document.getElementById("save-prompt").onclick = async () => {
+      try { pretty("prompt-output", await request("/api/v1/ai/prompts/", "POST", {
+        scene: document.getElementById("prompt-scene").value,
+        version: Number(document.getElementById("prompt-version").value),
+        template_text: document.getElementById("prompt-text").value,
+        is_default: true
+      })); } catch (e) { pretty("prompt-output", e); }
+    };
+    document.getElementById("list-prompt").onclick = async () => {
+      try { pretty("prompt-output", await request("/api/v1/ai/prompts/?scene=api_case_gen")); } catch (e) { pretty("prompt-output", e); }
+    };
+
+    document.getElementById("schema-file").onchange = (event) => {
+      const file = event.target.files && event.target.files[0]; if (!file) return;
+      const name = (file.name || "").toLowerCase(); const sourceSelect = document.getElementById("schema-source");
+      if (name.endsWith(".pdf")) sourceSelect.value = "pdf";
+      else if (name.endsWith(".docx") || name.endsWith(".md") || name.endsWith(".txt")) sourceSelect.value = "word";
+      else if (name.endsWith(".json")) sourceSelect.value = "json";
+    };
+
+    document.getElementById("import-schema").onclick = async () => {
+      try {
+        const source = document.getElementById("schema-source").value;
+        const content = document.getElementById("schema-content").value;
+        const fileInput = document.getElementById("schema-file");
+        const selectedFile = fileInput.files && fileInput.files[0];
+        const projectId = document.getElementById("schema-project-select").value.trim();
+        const newProjectName = document.getElementById("schema-new-project-name").value.trim();
+        const newProjectDesc = document.getElementById("schema-new-project-desc").value.trim();
+        if (!projectId && !newProjectName) throw { message: "请先选择已有项目，或填写新建项目名称" };
+
+        let data;
+        if (selectedFile) {
+          const formData = new FormData();
+          formData.append("source_type", source);
+          formData.append("file", selectedFile);
+          if (projectId) formData.append("project_id", projectId);
+          if (newProjectName) { formData.append("new_project_name", newProjectName); formData.append("new_project_description", newProjectDesc); }
+          if (source === "url") formData.append("url", content); else if (content) formData.append("content", content);
+          data = await requestForm("/api/v1/api-testing/schemas/import", formData);
+        } else {
+          const body = source === "url" ? { source_type: source, url: content } : { source_type: source, content };
+          if (projectId) body.project_id = Number(projectId);
+          if (newProjectName) { body.new_project_name = newProjectName; body.new_project_description = newProjectDesc; }
+          data = await request("/api/v1/api-testing/schemas/import", "POST", body);
+        }
+        if (data.schema_id) document.getElementById("endpoint-schema-id").value = data.schema_id;
+        if (Array.isArray(data.endpoint_ids)) {
+          const ids = data.endpoint_ids.map(String);
+          document.getElementById("endpoint-ids").value = ids.join(",");
+          document.getElementById("ai-endpoint-id").value = ids.join(",");
+        }
+        await loadProjects();
+        if (projectId) document.getElementById("endpoint-project-select").value = projectId;
+        pretty("schema-output", data);
+        switchModule("module-endpoints");
+      } catch (e) { pretty("schema-output", e); }
+    };
+
+    function getSelectedEndpointIds() {
+      const checks = document.querySelectorAll(".endpoint-item input[type='checkbox']");
+      const ids = []; for (const check of checks) if (check.checked) ids.push(Number(check.value));
+      return ids;
+    }
+    function syncSelectedEndpointIds() { document.getElementById("ai-endpoint-id").value = getSelectedEndpointIds().join(","); }
+    function renderEndpointList(items) {
+      const box = document.getElementById("endpoint-list"); box.innerHTML = "";
+      if (!Array.isArray(items) || items.length === 0) { box.textContent = "暂无接口数据。"; return; }
+      for (const item of items) {
+        const row = document.createElement("label");
+        row.className = "endpoint-item";
+        const summary = item.summary ? ` - ${item.summary}` : "";
+        row.innerHTML = `<input type="checkbox" value="${item.id}" /> <span>[${String(item.method || "").toUpperCase()}] ${item.path}${summary}</span>`;
+        row.querySelector("input").addEventListener("change", syncSelectedEndpointIds);
+        box.appendChild(row);
+      }
+    }
+    document.getElementById("load-endpoints").onclick = async () => {
+      try {
+        const schemaId = document.getElementById("endpoint-schema-id").value.trim();
+        const projectId = document.getElementById("endpoint-project-select").value.trim();
+        const params = new URLSearchParams();
+        if (schemaId) params.set("schema_id", schemaId);
+        if (projectId) params.set("project_id", projectId);
+        const query = params.toString() ? `?${params.toString()}` : "";
+        const data = await request(`/api/v1/api-testing/endpoints/${query}`);
+        renderEndpointList(data);
+        pretty("endpoint-output", data);
+      } catch (e) { pretty("endpoint-output", e); }
+    };
+    document.getElementById("select-all-endpoints").onclick = () => {
+      endpointSelectAllState = !endpointSelectAllState;
+      document.querySelectorAll(".endpoint-item input[type='checkbox']").forEach((c) => { c.checked = endpointSelectAllState; });
+      syncSelectedEndpointIds();
+    };
+
+    document.getElementById("ai-generate").onclick = async () => {
+      try {
+        const endpointIds = document.getElementById("ai-endpoint-id").value.trim().split(",").map((x) => Number(x.trim())).filter((x) => Number.isInteger(x) && x > 0);
+        if (endpointIds.length === 0) throw { message: "请先勾选至少一个 endpoint" };
+        const data = await request("/api/v1/api-testing/test-cases/ai-generate", "POST", { endpoint_ids: endpointIds, prompt: document.getElementById("ai-prompt").value });
+        const firstCase = Array.isArray(data.cases) && data.cases.length > 0 ? data.cases[0] : data;
+        if (firstCase && firstCase.id) {
+          document.getElementById("case-id").value = firstCase.id;
+          document.getElementById("case-endpoint").value = firstCase.endpoint;
+          document.getElementById("case-project").value = firstCase.project;
+        }
+        pretty("ai-output", data);
+      } catch (e) { pretty("ai-output", e); }
+    };
+
+    document.getElementById("list-cases").onclick = async () => {
+      try {
+        const params = new URLSearchParams();
+        const endpoint = document.getElementById("case-endpoint").value;
+        const project = document.getElementById("case-project").value;
+        if (endpoint) params.set("endpoint", endpoint);
+        if (project) params.set("project", project);
+        pretty("case-output", await request(`/api/v1/api-testing/test-cases/?${params.toString()}`));
+      } catch (e) { pretty("case-output", e); }
+    };
+    document.getElementById("get-case").onclick = async () => {
+      try { pretty("case-output", await request(`/api/v1/api-testing/test-cases/${encodeURIComponent(document.getElementById("case-id").value)}/`)); }
+      catch (e) { pretty("case-output", e); }
+    };
+
+    loadProjects().catch(() => {});
+  </script>
+</body>
+</html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Testing Console</title>
+  <style>
+    :root {
+      --primary: #1e66f5;
+      --primary-dark: #154cc2;
+      --bg: #f3f7ff;
+      --panel: #ffffff;
+      --text: #1f2a44;
+      --sub: #6b7a99;
+      --border: #d9e2f5;
+      --ok: #1f9d55;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .layout {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 240px 1fr;
+    }
+    .sidebar {
+      background: linear-gradient(180deg, #0e3fae 0%, #1e66f5 100%);
+      color: #fff;
+      padding: 18px 14px;
+      border-right: 1px solid #2f6ded;
+    }
+    .brand {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 6px 8px 16px;
+      letter-spacing: 0.3px;
+    }
+    .menu {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .menu button {
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      text-align: left;
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .menu button.active {
+      background: #fff;
+      color: var(--primary-dark);
+      border-color: #fff;
+      font-weight: 600;
+    }
+    .main {
+      padding: 20px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .title {
+      font-size: 24px;
+      font-weight: 700;
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--sub);
+    }
+    .module {
+      display: none;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 4px 16px rgba(18, 74, 180, 0.06);
+    }
+    .module.active { display: block; }
+    .module h2 {
+      margin: 0 0 6px;
+      font-size: 18px;
+    }
+    .module p {
+      margin: 0 0 14px;
+      color: var(--sub);
+      font-size: 13px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .row { margin: 8px 0; }
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--sub);
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+    input, select, textarea, button {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 10px;
+      font-size: 14px;
+      background: #fff;
+      color: var(--text);
+    }
+    textarea {
+      min-height: 120px;
+      font-family: Consolas, monospace;
+    }
+    button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: var(--primary-dark); }
+    .btn-secondary {
+      background: #eef4ff;
+      color: var(--primary-dark);
+      border: 1px solid #c8d9ff;
+    }
+    .btn-secondary:hover { background: #deebff; }
+    pre {
+      margin-top: 10px;
+      background: #f8fbff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      overflow: auto;
+      max-height: 280px;
+      font-size: 12px;
+    }
+    .endpoint-list {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      max-height: 240px;
+      overflow: auto;
+      padding: 8px;
+      background: #f9fbff;
+    }
+    .endpoint-item {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin: 6px 0;
+      font-size: 13px;
+    }
+    .status-ok {
+      color: var(--ok);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">AITS Workbench</div>
+      <div class="menu">
+        <button class="menu-btn active" data-module="module-provider">模型配置</button>
+        <button class="menu-btn" data-module="module-prompt">Prompt 配置</button>
+        <button class="menu-btn" data-module="module-schema">OpenAPI 导入</button>
+        <button class="menu-btn" data-module="module-endpoints">接口管理</button>
+        <button class="menu-btn" data-module="module-ai">AI 生成用例</button>
+        <button class="menu-btn" data-module="module-cases">TestCase 查询</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="title">API 自动化测试控制台</div>
+        <div class="hint">企业风格导航页 · 蓝色主题</div>
+      </div>
+
+      <section id="module-provider" class="module active">
+        <h2>模型配置（LLM Provider）</h2>
+        <p>支持创建、查看、按 ID 加载和更新已有 Provider。</p>
+        <div class="grid-2">
+          <div class="row">
+            <label>provider_id（更新时使用）</label>
+            <input id="provider-id" placeholder="选择已有项后自动填充" />
+          </div>
+          <div class="row" style="display:flex;align-items:flex-end;">
+            <button id="load-provider" class="btn-secondary">按ID加载到表单</button>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="row">
+            <label>name</label>
+            <input id="provider-name" value="openai-main" />
+          </div>
+          <div class="row">
+            <label>provider</label>
+            <select id="provider-provider">
+              <option value="openai">openai</option>
+              <option value="anthropic">anthropic</option>
+              <option value="qwen">qwen</option>
+              <option value="deepseek">deepseek</option>
+              <option value="glm">glm</option>
+              <option value="minimax">minimax</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="row">
+            <label>model_name</label>
+            <input id="provider-model" value="gpt-4o-mini" />
+          </div>
+          <div class="row">
+            <label>api_base（可选）</label>
+            <input id="provider-base" placeholder="https://api.openai.com/v1" />
+          </div>
+        </div>
+        <div class="row">
+          <label>api_key_encrypted</label>
+          <input id="provider-key" placeholder="sk-..." />
+        </div>
+        <div class="grid-2">
+          <div class="row"><button id="save-provider">创建 Provider</button></div>
+          <div class="row"><button id="update-provider" class="btn-secondary">更新 Provider</button></div>
+        </div>
+        <div class="row"><button id="list-provider" class="btn-secondary">刷新 Provider 列表</button></div>
+        <pre id="provider-output"></pre>
+      </section>
+
+      <section id="module-prompt" class="module">
+        <h2>Prompt 配置（api_case_gen）</h2>
+        <p>配置模型提示词模板，AI 生成接口用例会读取默认模板。</p>
+        <div class="grid-2">
+          <div class="row">
+            <label>scene</label>
+            <input id="prompt-scene" value="api_case_gen" />
+          </div>
+          <div class="row">
+            <label>version</label>
+            <input id="prompt-version" type="number" value="1" />
+          </div>
+        </div>
+        <div class="row">
+          <label>template_text</label>
+          <textarea id="prompt-text">Generate API test cases in JSON array format with fields: title, request_data, assertions.</textarea>
+        </div>
+        <div class="grid-2">
+          <div class="row"><button id="save-prompt">创建 Prompt</button></div>
+          <div class="row"><button id="list-prompt" class="btn-secondary">刷新 Prompt 列表</button></div>
+        </div>
+        <pre id="prompt-output"></pre>
+      </section>
+
+      <section id="module-schema" class="module">
+        <h2>OpenAPI 导入</h2>
+        <p>支持 json/url/word/pdf 导入；并可上传 .json/.docx/.pdf/.md/.txt。</p>
+        <div class="row">
+          <label>source_type</label>
+          <select id="schema-source">
+            <option value="json">json</option>
+            <option value="url">url</option>
+            <option value="word">word</option>
+            <option value="pdf">pdf</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>content（JSON / 文档文本）或 url</label>
+          <textarea id="schema-content">{
+  "openapi": "3.0.3",
+  "info": {"title": "Demo API"},
+  "paths": {
+    "/pets": {
+      "get": {
+        "summary": "List pets",
+        "responses": {"200": {"description": "ok"}}
+      }
+    }
+  }
+}</textarea>
+        </div>
+        <div class="row">
+          <label>上传文件（.json / .docx / .pdf / .md / .txt）</label>
+          <input id="schema-file" type="file" accept=".json,.docx,.pdf,.md,.txt,text/markdown,text/plain,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+        </div>
+        <div class="row"><button id="import-schema">导入 Schema</button></div>
+        <pre id="schema-output"></pre>
+      </section>
+
+      <section id="module-endpoints" class="module">
+        <h2>接口管理</h2>
+        <p>展示并勾选已导入接口，支持去重列表与全选切换。</p>
+        <div class="grid-2">
+          <div class="row">
+            <label>schema_id</label>
+            <input id="endpoint-schema-id" placeholder="导入成功后自动填充" />
+          </div>
+          <div class="row">
+            <label>endpoint_ids（导入返回）</label>
+            <input id="endpoint-ids" placeholder="如：1,2,3" />
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="row"><button id="load-endpoints">加载已导入接口列表</button></div>
+          <div class="row"><button id="select-all-endpoints" class="btn-secondary">全选/全不选</button></div>
+        </div>
+        <div id="endpoint-list" class="endpoint-list">暂无已导入接口，请先导入 OpenAPI。</div>
+        <pre id="endpoint-output"></pre>
+      </section>
+
+      <section id="module-ai" class="module">
+        <h2>AI 生成 API TestCase</h2>
+        <p>先在“接口管理”勾选 endpoint，再通过 prompt 批量生成。</p>
+        <div class="grid-2">
+          <div class="row">
+            <label>selected endpoint_ids（自动）</label>
+            <input id="ai-endpoint-id" placeholder="勾选接口后自动填充，支持逗号分隔" />
+          </div>
+          <div class="row">
+            <label>prompt</label>
+            <input id="ai-prompt" value="每个API各生成至少1条正向场景测试用例和2条负向场景测试用例" />
+          </div>
+        </div>
+        <div class="row"><button id="ai-generate">生成</button></div>
+        <div class="hint status-ok">提示：接口支持批量生成，会返回 created_count 与 cases 列表。</div>
+        <pre id="ai-output"></pre>
+      </section>
+
+      <section id="module-cases" class="module">
+        <h2>TestCase 查询</h2>
+        <p>支持按 endpoint/project 过滤列表，并按 ID 查看详情。</p>
+        <div class="grid-2">
+          <div class="row">
+            <label>endpoint（可选）</label>
+            <input id="case-endpoint" />
+          </div>
+          <div class="row">
+            <label>project（可选）</label>
+            <input id="case-project" />
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="row"><button id="list-cases">查询列表</button></div>
+          <div class="row"><button id="get-case" class="btn-secondary">按ID详情</button></div>
+        </div>
+        <div class="row">
+          <label>case_id（详情用）</label>
+          <input id="case-id" />
+        </div>
+        <pre id="case-output"></pre>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    let endpointSelectAllState = false;
+
+    function pretty(targetId, data) {
+      document.getElementById(targetId).textContent = JSON.stringify(data, null, 2);
+    }
+
+    function switchModule(moduleId) {
+      const buttons = document.querySelectorAll(".menu-btn");
+      const modules = document.querySelectorAll(".module");
+      for (const b of buttons) b.classList.toggle("active", b.dataset.module === moduleId);
+      for (const m of modules) m.classList.toggle("active", m.id === moduleId);
+    }
+
+    document.querySelectorAll(".menu-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchModule(btn.dataset.module));
+    });
+
+    async function request(url, method = "GET", body = null) {
+      const options = { method, headers: { "Accept": "application/json" } };
+      if (body !== null) {
+        options.headers["Content-Type"] = "application/json";
+        options.body = JSON.stringify(body);
+      }
+      const resp = await fetch(url, options);
+      let payload = null;
+      try { payload = await resp.json(); }
+      catch (e) { payload = { message: "Non-JSON response", status: resp.status }; }
+      if (!resp.ok) throw payload;
+      return payload;
+    }
+
+    async function requestForm(url, formData) {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Accept": "application/json" },
+        body: formData
+      });
+      let payload = null;
+      try { payload = await resp.json(); }
+      catch (e) { payload = { message: "Non-JSON response", status: resp.status }; }
+      if (!resp.ok) throw payload;
+      return payload;
+    }
+
+    document.getElementById("save-provider").onclick = async () => {
+      try {
+        const data = await request("/api/v1/ai/providers/", "POST", {
+          name: document.getElementById("provider-name").value,
+          provider: document.getElementById("provider-provider").value,
+          model_name: document.getElementById("provider-model").value,
+          api_base: document.getElementById("provider-base").value,
+          api_key_encrypted: document.getElementById("provider-key").value,
+          is_active: true
+        });
+        pretty("provider-output", data);
+      } catch (e) { pretty("provider-output", e); }
+    };
+
+    document.getElementById("update-provider").onclick = async () => {
+      try {
+        const providerId = document.getElementById("provider-id").value.trim();
+        if (!providerId) throw { message: "请先填写 provider_id（或先按ID加载）" };
+        const data = await request(`/api/v1/ai/providers/${encodeURIComponent(providerId)}/`, "PATCH", {
+          name: document.getElementById("provider-name").value,
+          provider: document.getElementById("provider-provider").value,
+          model_name: document.getElementById("provider-model").value,
+          api_base: document.getElementById("provider-base").value,
+          api_key_encrypted: document.getElementById("provider-key").value,
+          is_active: true
+        });
+        pretty("provider-output", data);
+      } catch (e) { pretty("provider-output", e); }
+    };
+
+    document.getElementById("load-provider").onclick = async () => {
+      try {
+        const providerId = document.getElementById("provider-id").value.trim();
+        if (!providerId) throw { message: "请先填写 provider_id" };
+        const data = await request(`/api/v1/ai/providers/${encodeURIComponent(providerId)}/`);
+        document.getElementById("provider-id").value = String(data.id || providerId);
+        document.getElementById("provider-name").value = data.name || "";
+        document.getElementById("provider-provider").value = data.provider || "openai";
+        document.getElementById("provider-model").value = data.model_name || "";
+        document.getElementById("provider-base").value = data.api_base || "";
+        document.getElementById("provider-key").value = data.api_key_encrypted || "";
+        pretty("provider-output", data);
+      } catch (e) { pretty("provider-output", e); }
+    };
+
+    document.getElementById("list-provider").onclick = async () => {
+      try {
+        const data = await request("/api/v1/ai/providers/");
+        if (Array.isArray(data) && data.length > 0) document.getElementById("provider-id").value = String(data[0].id);
+        pretty("provider-output", data);
+      } catch (e) { pretty("provider-output", e); }
+    };
+
+    document.getElementById("save-prompt").onclick = async () => {
+      try {
+        const data = await request("/api/v1/ai/prompts/", "POST", {
+          scene: document.getElementById("prompt-scene").value,
+          version: Number(document.getElementById("prompt-version").value),
+          template_text: document.getElementById("prompt-text").value,
+          is_default: true
+        });
+        pretty("prompt-output", data);
+      } catch (e) { pretty("prompt-output", e); }
+    };
+
+    document.getElementById("list-prompt").onclick = async () => {
+      try { pretty("prompt-output", await request("/api/v1/ai/prompts/?scene=api_case_gen")); }
+      catch (e) { pretty("prompt-output", e); }
+    };
+
+    document.getElementById("schema-file").onchange = (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const name = (file.name || "").toLowerCase();
+      const sourceSelect = document.getElementById("schema-source");
+      if (name.endsWith(".pdf")) sourceSelect.value = "pdf";
+      else if (name.endsWith(".docx") || name.endsWith(".md") || name.endsWith(".txt")) sourceSelect.value = "word";
+      else if (name.endsWith(".json")) sourceSelect.value = "json";
+    };
+
+    document.getElementById("import-schema").onclick = async () => {
+      try {
+        const source = document.getElementById("schema-source").value;
+        const content = document.getElementById("schema-content").value;
+        const fileInput = document.getElementById("schema-file");
+        const selectedFile = fileInput.files && fileInput.files[0];
+        let data;
+        if (selectedFile) {
+          const formData = new FormData();
+          formData.append("source_type", source);
+          formData.append("file", selectedFile);
+          if (source === "url") formData.append("url", content);
+          else if (content) formData.append("content", content);
+          data = await requestForm("/api/v1/api-testing/schemas/import", formData);
+        } else {
+          const body = source === "url" ? { source_type: "url", url: content } : { source_type: source, content };
+          data = await request("/api/v1/api-testing/schemas/import", "POST", body);
+        }
+        if (data.schema_id) document.getElementById("endpoint-schema-id").value = data.schema_id;
+        if (Array.isArray(data.endpoint_ids)) {
+          const endpointIds = data.endpoint_ids.map(String);
+          document.getElementById("endpoint-ids").value = endpointIds.join(",");
+          if (endpointIds.length > 0) document.getElementById("ai-endpoint-id").value = endpointIds.join(",");
+        }
+        pretty("schema-output", data);
+        switchModule("module-endpoints");
+      } catch (e) { pretty("schema-output", e); }
+    };
+
+    function getSelectedEndpointIds() {
+      const checks = document.querySelectorAll(".endpoint-item input[type='checkbox']");
+      const ids = [];
+      for (const check of checks) if (check.checked) ids.push(Number(check.value));
+      return ids;
+    }
+
+    function syncSelectedEndpointIds() {
+      document.getElementById("ai-endpoint-id").value = getSelectedEndpointIds().join(",");
+    }
+
+    function renderEndpointList(items) {
+      const container = document.getElementById("endpoint-list");
+      container.innerHTML = "";
+      if (!Array.isArray(items) || items.length === 0) {
+        container.textContent = "暂无已导入接口，请先导入 OpenAPI。";
+        return;
+      }
+      for (const item of items) {
+        const row = document.createElement("label");
+        row.className = "endpoint-item";
+        const method = String(item.method || "").toUpperCase();
+        const summary = item.summary ? ` - ${item.summary}` : "";
+        row.innerHTML = `<input type="checkbox" value="${item.id}" /> <span>[${method}] ${item.path}${summary}</span>`;
+        row.querySelector("input").addEventListener("change", syncSelectedEndpointIds);
+        container.appendChild(row);
+      }
+    }
+
+    document.getElementById("load-endpoints").onclick = async () => {
+      try {
+        const schemaId = document.getElementById("endpoint-schema-id").value.trim();
+        const query = schemaId ? `?schema_id=${encodeURIComponent(schemaId)}` : "";
+        const data = await request(`/api/v1/api-testing/endpoints/${query}`);
+        renderEndpointList(data);
+        pretty("endpoint-output", data);
+      } catch (e) { pretty("endpoint-output", e); }
+    };
+
+    document.getElementById("select-all-endpoints").onclick = () => {
+      endpointSelectAllState = !endpointSelectAllState;
+      const checks = document.querySelectorAll(".endpoint-item input[type='checkbox']");
+      for (const check of checks) check.checked = endpointSelectAllState;
+      syncSelectedEndpointIds();
+    };
+
+    document.getElementById("ai-generate").onclick = async () => {
+      try {
+        const endpointInput = document.getElementById("ai-endpoint-id").value.trim();
+        const endpointIds = endpointInput.split(",").map(x => Number(x.trim())).filter(x => Number.isInteger(x) && x > 0);
+        if (endpointIds.length === 0) throw { message: "请先在接口管理中勾选至少一个 endpoint" };
+        const data = await request("/api/v1/api-testing/test-cases/ai-generate", "POST", {
+          endpoint_ids: endpointIds,
+          prompt: document.getElementById("ai-prompt").value
+        });
+        const firstCase = Array.isArray(data.cases) && data.cases.length > 0 ? data.cases[0] : data;
+        if (firstCase && firstCase.id) {
+          document.getElementById("case-id").value = firstCase.id;
+          document.getElementById("case-endpoint").value = firstCase.endpoint;
+          document.getElementById("case-project").value = firstCase.project;
+        }
+        pretty("ai-output", data);
+      } catch (e) { pretty("ai-output", e); }
+    };
+
+    document.getElementById("list-cases").onclick = async () => {
+      try {
+        const endpoint = document.getElementById("case-endpoint").value;
+        const project = document.getElementById("case-project").value;
+        const query = new URLSearchParams();
+        if (endpoint) query.set("endpoint", endpoint);
+        if (project) query.set("project", project);
+        const data = await request(`/api/v1/api-testing/test-cases/?${query.toString()}`);
+        pretty("case-output", data);
+      } catch (e) { pretty("case-output", e); }
+    };
+
+    document.getElementById("get-case").onclick = async () => {
+      try {
+        const id = document.getElementById("case-id").value;
+        const data = await request(`/api/v1/api-testing/test-cases/${encodeURIComponent(id)}/`);
+        pretty("case-output", data);
+      } catch (e) { pretty("case-output", e); }
+    };
+  </script>
+</body>
+</html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Testing Workbench</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; color: #222; }
+    h1, h2 { margin: 0 0 10px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+    .row { margin: 8px 0; }
+    label { display: block; font-weight: bold; margin-bottom: 4px; }
+    input, select, textarea, button { width: 100%; box-sizing: border-box; padding: 8px; }
+    textarea { min-height: 120px; font-family: Consolas, monospace; }
+    button { cursor: pointer; }
+    .inline { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    pre { background: #f6f8fa; border: 1px solid #ddd; border-radius: 6px; padding: 10px; overflow: auto; max-height: 260px; }
+    .small { font-size: 12px; color: #666; }
+    .endpoint-list { border: 1px solid #ddd; border-radius: 6px; max-height: 220px; overflow: auto; padding: 8px; background: #fafafa; }
+    .endpoint-item { display: flex; gap: 8px; align-items: center; margin: 6px 0; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>API Testing Workbench</h1>
+  <p class="small">用于手工验证 API Testing 与模型配置流程。</p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>1) 模型配置（LLM Provider）</h2>
+      <div class="row inline">
+        <div>
+          <label>provider_id（更新时使用）</label>
+          <input id="provider-id" placeholder="选择已有项后自动填充" />
+        </div>
+        <div style="display:flex;align-items:end;">
+          <button id="load-provider">按ID加载到表单</button>
+        </div>
+      </div>
+      <div class="row inline">
+        <div>
+          <label>name</label>
+          <input id="provider-name" value="openai-main" />
+        </div>
+        <div>
+          <label>provider</label>
+          <select id="provider-provider">
+            <option value="openai">openai</option>
+            <option value="anthropic">anthropic</option>
+            <option value="qwen">qwen</option>
+            <option value="deepseek">deepseek</option>
+            <option value="glm">glm</option>
+            <option value="minimax">minimax</option>
+          </select>
+        </div>
+      </div>
+      <div class="row inline">
+        <div>
+          <label>model_name</label>
+          <input id="provider-model" value="gpt-4o-mini" />
+        </div>
+        <div>
+          <label>api_base (可选)</label>
+          <input id="provider-base" placeholder="https://api.openai.com/v1" />
+        </div>
+      </div>
+      <div class="row">
+        <label>api_key_encrypted</label>
+        <input id="provider-key" placeholder="sk-..." />
+      </div>
+      <div class="row">
+        <button id="save-provider">创建 Provider</button>
+      </div>
+      <div class="row">
+        <button id="update-provider">更新 Provider</button>
+      </div>
+      <div class="row">
+        <button id="list-provider">刷新 Provider 列表</button>
+      </div>
+      <pre id="provider-output"></pre>
+    </div>
+
+    <div class="card">
+      <h2>2) Prompt 配置（api_case_gen）</h2>
+      <div class="row inline">
+        <div>
+          <label>scene</label>
+          <input id="prompt-scene" value="api_case_gen" />
+        </div>
+        <div>
+          <label>version</label>
+          <input id="prompt-version" type="number" value="1" />
+        </div>
+      </div>
+      <div class="row">
+        <label>template_text</label>
+        <textarea id="prompt-text">Generate API test cases in JSON array format with fields: title, request_data, assertions.</textarea>
+      </div>
+      <div class="row">
+        <button id="save-prompt">创建 Prompt</button>
+      </div>
+      <div class="row">
+        <button id="list-prompt">刷新 Prompt 列表</button>
+      </div>
+      <pre id="prompt-output"></pre>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:16px;">
+    <div class="card">
+      <h2>3) 导入 OpenAPI</h2>
+      <div class="row">
+        <label>source_type</label>
+        <select id="schema-source">
+          <option value="json">json</option>
+          <option value="url">url</option>
+          <option value="word">word</option>
+          <option value="pdf">pdf</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>content (JSON / word / pdf) 或 url</label>
+        <textarea id="schema-content">{
+  "openapi": "3.0.3",
+  "info": {"title": "Demo API"},
+  "paths": {
+    "/pets": {
+      "get": {
+        "summary": "List pets",
+        "responses": {"200": {"description": "ok"}}
+      }
+    }
+  }
+}</textarea>
+      </div>
+      <div class="row">
+        <label>或上传文件（.json / .docx / .pdf / .md / .txt）</label>
+        <input id="schema-file" type="file" accept=".json,.docx,.pdf,.md,.txt,text/markdown,text/plain,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+      </div>
+      <div class="row">
+        <button id="import-schema">导入 Schema</button>
+      </div>
+      <pre id="schema-output"></pre>
+    </div>
+
+    <div class="card">
+      <h2>4) Endpoint 结果</h2>
+      <div class="row">
+        <label>schema_id</label>
+        <input id="endpoint-schema-id" placeholder="导入成功后自动填充" />
+      </div>
+      <div class="row">
+        <label>endpoint_ids（导入返回）</label>
+        <input id="endpoint-ids" placeholder="如：1,2,3" />
+      </div>
+      <div class="row inline">
+        <button id="load-endpoints">加载已导入接口列表</button>
+        <button id="select-all-endpoints">全选/全不选</button>
+      </div>
+      <div id="endpoint-list" class="endpoint-list"></div>
+      <pre id="endpoint-output"></pre>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:16px;">
+    <div class="card">
+      <h2>5) AI 生成 API TestCase</h2>
+      <div class="row inline">
+        <div>
+          <label>selected endpoint_ids（自动）</label>
+          <input id="ai-endpoint-id" placeholder="从下方勾选自动填充，支持逗号分隔" />
+        </div>
+        <div>
+          <label>prompt</label>
+          <input id="ai-prompt" value="生成1条正常场景测试用例" />
+        </div>
+      </div>
+      <div class="row">
+        <button id="ai-generate">生成</button>
+      </div>
+      <pre id="ai-output"></pre>
+    </div>
+
+    <div class="card">
+      <h2>6) 查询 TestCases</h2>
+      <div class="row inline">
+        <div>
+          <label>endpoint (可选)</label>
+          <input id="case-endpoint" />
+        </div>
+        <div>
+          <label>project (可选)</label>
+          <input id="case-project" />
+        </div>
+      </div>
+      <div class="row inline">
+        <button id="list-cases">查询列表</button>
+        <button id="get-case">按ID详情</button>
+      </div>
+      <div class="row">
+        <label>case_id（详情用）</label>
+        <input id="case-id" />
+      </div>
+      <pre id="case-output"></pre>
+    </div>
+  </div>
+
+  <script>
+    let endpointSelectAllState = false;
+
+    function pretty(targetId, data) {
+      document.getElementById(targetId).textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function request(url, method = "GET", body = null) {
+      const options = {
+        method,
+        headers: {
+          "Accept": "application/json"
+        }
+      };
+      if (body !== null) {
+        options.headers["Content-Type"] = "application/json";
+        options.body = JSON.stringify(body);
+      }
+      const resp = await fetch(url, options);
+      let payload = null;
+      try {
+        payload = await resp.json();
+      } catch (e) {
+        payload = { message: "Non-JSON response", status: resp.status };
+      }
+      if (!resp.ok) {
+        throw payload;
+      }
+      return payload;
+    }
+
+    async function requestForm(url, formData) {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json"
+        },
+        body: formData
+      });
+      let payload = null;
+      try {
+        payload = await resp.json();
+      } catch (e) {
+        payload = { message: "Non-JSON response", status: resp.status };
+      }
+      if (!resp.ok) {
+        throw payload;
+      }
+      return payload;
+    }
+
+    document.getElementById("save-provider").onclick = async () => {
+      try {
+        const data = await request("/api/v1/ai/providers/", "POST", {
+          name: document.getElementById("provider-name").value,
+          provider: document.getElementById("provider-provider").value,
+          model_name: document.getElementById("provider-model").value,
+          api_base: document.getElementById("provider-base").value,
+          api_key_encrypted: document.getElementById("provider-key").value,
+          is_active: true
+        });
+        pretty("provider-output", data);
+      } catch (e) { pretty("provider-output", e); }
+    };
+
+    document.getElementById("update-provider").onclick = async () => {
+      try {
+        const providerId = document.getElementById("provider-id").value.trim();
+        if (!providerId) {
+          throw { message: "请先填写 provider_id（或先按ID加载）" };
+        }
+        const data = await request(`/api/v1/ai/providers/${encodeURIComponent(providerId)}/`, "PATCH", {
+          name: document.getElementById("provider-name").value,
+          provider: document.getElementById("provider-provider").value,
+          model_name: document.getElementById("provider-model").value,
+          api_base: document.getElementById("provider-base").value,
+          api_key_encrypted: document.getElementById("provider-key").value,
+          is_active: true
+        });
+        pretty("provider-output", data);
+      } catch (e) { pretty("provider-output", e); }
+    };
+
+    document.getElementById("load-provider").onclick = async () => {
+      try {
+        const providerId = document.getElementById("provider-id").value.trim();
+        if (!providerId) {
+          throw { message: "请先填写 provider_id" };
+        }
+        const data = await request(`/api/v1/ai/providers/${encodeURIComponent(providerId)}/`);
+        document.getElementById("provider-id").value = String(data.id || providerId);
+        document.getElementById("provider-name").value = data.name || "";
+        document.getElementById("provider-provider").value = data.provider || "openai";
+        document.getElementById("provider-model").value = data.model_name || "";
+        document.getElementById("provider-base").value = data.api_base || "";
+        document.getElementById("provider-key").value = data.api_key_encrypted || "";
+        pretty("provider-output", data);
+      } catch (e) { pretty("provider-output", e); }
+    };
+
+    document.getElementById("list-provider").onclick = async () => {
+      try {
+        const data = await request("/api/v1/ai/providers/");
+        if (Array.isArray(data) && data.length > 0) {
+          document.getElementById("provider-id").value = String(data[0].id);
+        }
+        pretty("provider-output", data);
+      }
+      catch (e) { pretty("provider-output", e); }
+    };
+
+    document.getElementById("save-prompt").onclick = async () => {
+      try {
+        const data = await request("/api/v1/ai/prompts/", "POST", {
+          scene: document.getElementById("prompt-scene").value,
+          version: Number(document.getElementById("prompt-version").value),
+          template_text: document.getElementById("prompt-text").value,
+          is_default: true
+        });
+        pretty("prompt-output", data);
+      } catch (e) { pretty("prompt-output", e); }
+    };
+
+    document.getElementById("list-prompt").onclick = async () => {
+      try {
+        pretty("prompt-output", await request("/api/v1/ai/prompts/?scene=api_case_gen"));
+      } catch (e) { pretty("prompt-output", e); }
+    };
+
+    document.getElementById("import-schema").onclick = async () => {
+      try {
+        const source = document.getElementById("schema-source").value;
+        const content = document.getElementById("schema-content").value;
+        const fileInput = document.getElementById("schema-file");
+        const selectedFile = fileInput.files && fileInput.files[0];
+        let data;
+        if (selectedFile) {
+          const formData = new FormData();
+          formData.append("source_type", source);
+          formData.append("file", selectedFile);
+          if (source === "url") {
+            formData.append("url", content);
+          } else if (content) {
+            formData.append("content", content);
+          }
+          data = await requestForm("/api/v1/api-testing/schemas/import", formData);
+        } else {
+          const body = source === "url"
+            ? { source_type: "url", url: content }
+            : { source_type: source, content };
+          data = await request("/api/v1/api-testing/schemas/import", "POST", body);
+        }
+        if (data.schema_id) {
+          document.getElementById("endpoint-schema-id").value = data.schema_id;
+        }
+        if (Array.isArray(data.endpoint_ids)) {
+          const endpointIds = data.endpoint_ids.map(String);
+          document.getElementById("endpoint-ids").value = endpointIds.join(",");
+          if (endpointIds.length > 0) {
+            document.getElementById("ai-endpoint-id").value = endpointIds[0];
+          }
+        }
+        pretty("endpoint-output", {
+          schema_id: data.schema_id,
+          endpoint_count: data.endpoint_count,
+          endpoint_ids: data.endpoint_ids || []
+        });
+        pretty("schema-output", data);
+      } catch (e) { pretty("schema-output", e); }
+    };
+
+    function getSelectedEndpointIds() {
+      const checks = document.querySelectorAll(".endpoint-item input[type='checkbox']");
+      const ids = [];
+      for (const check of checks) {
+        if (check.checked) ids.push(Number(check.value));
+      }
+      return ids;
+    }
+
+    function syncSelectedEndpointIds() {
+      const ids = getSelectedEndpointIds();
+      document.getElementById("ai-endpoint-id").value = ids.join(",");
+    }
+
+    function renderEndpointList(items) {
+      const container = document.getElementById("endpoint-list");
+      container.innerHTML = "";
+      if (!Array.isArray(items) || items.length === 0) {
+        container.textContent = "暂无已导入接口，请先导入 OpenAPI。";
+        return;
+      }
+      for (const item of items) {
+        const row = document.createElement("label");
+        row.className = "endpoint-item";
+        const method = String(item.method || "").toUpperCase();
+        const summary = item.summary ? ` - ${item.summary}` : "";
+        row.innerHTML = `<input type="checkbox" value="${item.id}" /> <span>[${method}] ${item.path}${summary}</span>`;
+        const checkbox = row.querySelector("input");
+        checkbox.addEventListener("change", syncSelectedEndpointIds);
+        container.appendChild(row);
+      }
+    }
+
+    document.getElementById("load-endpoints").onclick = async () => {
+      try {
+        const schemaId = document.getElementById("endpoint-schema-id").value.trim();
+        const query = schemaId ? `?schema_id=${encodeURIComponent(schemaId)}` : "";
+        const data = await request(`/api/v1/api-testing/endpoints/${query}`);
+        renderEndpointList(data);
+        pretty("endpoint-output", data);
+      } catch (e) { pretty("endpoint-output", e); }
+    };
+
+    document.getElementById("select-all-endpoints").onclick = () => {
+      endpointSelectAllState = !endpointSelectAllState;
+      const checks = document.querySelectorAll(".endpoint-item input[type='checkbox']");
+      for (const check of checks) check.checked = endpointSelectAllState;
+      syncSelectedEndpointIds();
+    };
+
+    document.getElementById("schema-file").onchange = (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const name = (file.name || "").toLowerCase();
+      const sourceSelect = document.getElementById("schema-source");
+      if (name.endsWith(".pdf")) {
+        sourceSelect.value = "pdf";
+      } else if (name.endsWith(".docx") || name.endsWith(".md") || name.endsWith(".txt")) {
+        sourceSelect.value = "word";
+      } else if (name.endsWith(".json")) {
+        sourceSelect.value = "json";
+      }
+    };
+
+    document.getElementById("ai-generate").onclick = async () => {
+      try {
+        const endpointInput = document.getElementById("ai-endpoint-id").value.trim();
+        const endpointIds = endpointInput
+          .split(",")
+          .map(x => Number(x.trim()))
+          .filter(x => Number.isInteger(x) && x > 0);
+        if (endpointIds.length === 0) {
+          throw { message: "请先在接口列表勾选至少一个 endpoint" };
+        }
+        const data = await request("/api/v1/api-testing/test-cases/ai-generate", "POST", {
+          endpoint_ids: endpointIds,
+          prompt: document.getElementById("ai-prompt").value
+        });
+        const firstCase = Array.isArray(data.cases) && data.cases.length > 0 ? data.cases[0] : data;
+        if (firstCase && firstCase.id) {
+          document.getElementById("case-id").value = firstCase.id;
+          document.getElementById("case-endpoint").value = firstCase.endpoint;
+          document.getElementById("case-project").value = firstCase.project;
+        }
+        pretty("ai-output", data);
+      } catch (e) { pretty("ai-output", e); }
+    };
+
+    document.getElementById("list-cases").onclick = async () => {
+      try {
+        const endpoint = document.getElementById("case-endpoint").value;
+        const project = document.getElementById("case-project").value;
+        const query = new URLSearchParams();
+        if (endpoint) query.set("endpoint", endpoint);
+        if (project) query.set("project", project);
+        const data = await request(`/api/v1/api-testing/test-cases/?${query.toString()}`);
+        pretty("case-output", data);
+      } catch (e) { pretty("case-output", e); }
+    };
+
+    document.getElementById("get-case").onclick = async () => {
+      try {
+        const id = document.getElementById("case-id").value;
+        const data = await request(`/api/v1/api-testing/test-cases/${encodeURIComponent(id)}/`);
+        pretty("case-output", data);
+      } catch (e) { pretty("case-output", e); }
+    };
+  </script>
+</body>
+</html>

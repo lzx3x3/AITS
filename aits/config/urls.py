@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
+from apps.api_testing.ui_views import ApiTestingWorkbenchView
 
 
 def api_root(_request):
@@ -24,6 +25,7 @@ def api_root(_request):
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("ui/api-testing/", ApiTestingWorkbenchView.as_view(), name="api-testing-workbench"),
     path("api/v1/", api_root, name="api-root"),
     path("api/v1/common/", include("apps.common.urls")),
     path("api/v1/projects/", include("apps.projects.urls")),
@@ -31,6 +33,7 @@ urlpatterns = [
     path("api/v1/project-members/", include("apps.projects.member_urls")),
     path("api/v1/api-testing/", include("apps.api_testing.urls")),
     path("api/v1/web-testing/", include("apps.web_testing.urls")),
+    path("api/v1/ai/", include("apps.ai_core.urls")),
     path("api/v1/ai-core/", include("apps.ai_core.urls")),
     path("api/v1/executions/", include("apps.executions.urls")),
     path("api/v1/reports/", include("apps.reports.urls")),
